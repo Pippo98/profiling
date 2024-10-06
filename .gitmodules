@@ -1,0 +1,7 @@
+[submodule "lib/thirdparty/imgui"]
+	path = external/imgui
+	url = git@github.com:ocornut/imgui.git
+	branch = docking
+[submodule "implot"]
+	path = external/implot
+	url = git@github.com:epezent/implot.git
