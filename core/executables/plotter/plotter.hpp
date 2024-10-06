@@ -14,8 +14,8 @@ struct measurement_element_t {
   double standardDeviation;
 
   std::string location;
-  std::string_view fileAndLine;
-  std::string_view function;
+  std::string fileAndLine;
+  std::string function;
 };
 
 class Plotter : public App {
@@ -24,8 +24,10 @@ protected:
 
 private:
   void processSessionData();
+  void plotSession();
 
   bool sessionCsvValid;
   std::vector<session_row_t> sessionData;
   std::map<std::string, measurement_element_t> measurements;
+  double endTime;
 };
