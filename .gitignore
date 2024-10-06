@@ -35,6 +35,11 @@
 build/
 bin/
 
+# cache
+.cache/
+
+compile_commands.json
+
 # VS Code
 imgui.ini/
 .vscode/
