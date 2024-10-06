@@ -7,6 +7,7 @@
 #include <iostream>
 
 void Plotter::Draw() {
+  ImGui::Begin("Plotter");
   if (!sessionCsvValid) {
     std::string &path = KVP::getMutable("base path");
     ImGui::InputText("Base path", &path);
@@ -16,8 +17,8 @@ void Plotter::Draw() {
     }
   } else {
     plotSession();
-    ImPlot::ShowDemoWindow();
   }
+  ImGui::End();
 }
 
 int main(void) {
@@ -104,8 +105,9 @@ void Plotter::plotSession() {
     row = 0;
     for (auto &[loc, meas] : measurements) {
       auto pltMin = ImPlot::GetPlotLimits();
-      ImPlot::PlotText(meas.fileAndLine.c_str(), pltMin.Min().x,
-                       (row + 0.5) * (yIncrement), ImVec2(100, 0));
+      std::string text = meas.fileAndLine + meas.function;
+      ImPlot::PlotText(text.c_str(), pltMin.Min().x, (row + 0.5) * (yIncrement),
+                       ImVec2(100, 0));
       row++;
     }
 

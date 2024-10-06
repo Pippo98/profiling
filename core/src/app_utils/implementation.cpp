@@ -121,6 +121,8 @@ void InitImgui(GLFWwindow *window) {
 
   ImGuiStyle &style = ImGui::GetStyle();
   ImPlot::CreateContext();
+  ImGuiIO &io = ImGui::GetIO();
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
 
   float scaling_x, scaling_y, app_scaling;
   glfwGetWindowContentScale(window, &scaling_x, &scaling_y);
