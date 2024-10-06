@@ -17,9 +17,12 @@ target_link_libraries(window_utils
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
-add_executable(example
-${CDIR}/executables/example/example.cpp
-)
-target_link_libraries(example
-    window_utils
+add_executable(example ${CDIR}/executables/example/example.cpp)
+target_link_libraries(example window_utils)
+
+add_executable(plotter
+    ${CDIR}/executables/plotter/plotter.cpp
+    ${CDIR}/executables/plotter/csv.cpp
+    ${CDIR}/executables/plotter/kvp.cpp
     )
+target_link_libraries(plotter window_utils)
