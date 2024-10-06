@@ -47,7 +47,7 @@ static std::map<std::string, std::string> KVPLoad(const std::string &filename) {
 }
 
 KVP::KVP() { data = KVPLoad(KVP_PATH); }
-KVP::~KVP() { KVPSave(KVP_PATH, data); }
+KVP::~KVP() { save(); }
 KVP &KVP::get() {
   static KVP inst;
   return inst;
@@ -67,3 +67,4 @@ std::string &KVP::getMutable(const std::string &key) { return get().data[key]; }
 void KVP::set(const std::string &key, const std::string &val) {
   get().data[key] = val;
 }
+void KVP::save() { KVPSave(KVP_PATH, get().data); }

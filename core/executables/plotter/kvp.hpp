@@ -20,4 +20,5 @@ public:
   static const std::string &get(const std::string &key);
   static std::string &getMutable(const std::string &key);
   static void set(const std::string &key, const std::string &val);
+  static void save();
 };
