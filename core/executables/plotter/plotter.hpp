@@ -24,7 +24,8 @@ protected:
 
 private:
   void processSessionData();
-  void plotSession();
+  void plotTimeEvolution();
+  void plotBars();
 
   bool sessionCsvValid;
   std::vector<session_row_t> sessionData;

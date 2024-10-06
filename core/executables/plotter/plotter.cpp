@@ -7,18 +7,25 @@
 #include <iostream>
 
 void Plotter::Draw() {
-  ImGui::Begin("Plotter");
   if (!sessionCsvValid) {
+    ImGui::Begin("Open");
     std::string &path = KVP::getMutable("base path");
     ImGui::InputText("Base path", &path);
     if (ImGui::Button("Open")) {
       sessionCsvValid = ReadSessionCSV(path, sessionData);
       processSessionData();
     }
+    ImGui::End();
   } else {
-    plotSession();
+    if (ImGui::Begin("Session")) {
+      plotTimeEvolution();
+    }
+    ImGui::End();
+    if (ImGui::Begin("Bars")) {
+      plotBars();
+    }
+    ImGui::End();
   }
-  ImGui::End();
 }
 
 int main(void) {
@@ -62,6 +69,7 @@ void Plotter::processSessionData() {
     meas.function = extractFunctionName(loc);
     meas.fileAndLine = extractFileAndLine(loc);
     meas.standardDeviation = 0.0;
+    meas.meanDuration /= meas.timeData.size();
     endTime = std::max(endTime, meas.timeData.back().time);
     for (const auto &timeData : meas.timeData) {
       meas.standardDeviation +=
@@ -74,7 +82,7 @@ void Plotter::processSessionData() {
   }
 }
 
-void Plotter::plotSession() {
+void Plotter::plotTimeEvolution() {
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
   if (ImPlot::BeginPlot("session", size)) {
@@ -107,6 +115,51 @@ void Plotter::plotSession() {
       auto pltMin = ImPlot::GetPlotLimits();
       std::string text = meas.fileAndLine + meas.function;
       ImPlot::PlotText(text.c_str(), pltMin.Min().x, (row + 0.5) * (yIncrement),
+                       ImVec2(100, 0));
+      row++;
+    }
+
+    ImPlot::EndPlot();
+  }
+}
+
+void Plotter::plotBars() {
+  static int opts = 0;
+  ImGui::RadioButton("Mean", &opts, 0);
+  ImGui::RadioButton("Cumulative", &opts, 1);
+  auto size = ImGui::GetContentRegionAvail();
+  float yIncrement = 1.0f;
+  if (ImPlot::BeginPlot("session", size)) {
+    std::vector<double> yPosition(measurements.size());
+    std::vector<double> bar(measurements.size());
+    std::vector<double> std(measurements.size());
+
+    int row = 0;
+    for (auto &[loc, meas] : measurements) {
+      yPosition[row] = row;
+      if (opts == 0) {
+        bar[row] = meas.meanDuration;
+        std[row] = meas.standardDeviation;
+      } else {
+        bar[row] = meas.meanDuration * meas.timeData.size();
+      }
+      row++;
+    }
+
+    ImPlot::PlotBars(opts == 0 ? "Mean" : "Cumulative", bar.data(),
+                     yPosition.data(), bar.size(), yIncrement / 2.0,
+                     ImPlotBarsFlags_Horizontal);
+    if (opts == 0) {
+      ImPlot::PlotErrorBars("Standard deviation", bar.data(), yPosition.data(),
+                            std.data(), bar.size(), yIncrement / 2.0,
+                            ImPlotErrorBarsFlags_Horizontal);
+    }
+
+    row = 0;
+    auto pltMin = ImPlot::GetPlotLimits();
+    for (auto &[loc, meas] : measurements) {
+      std::string text = meas.fileAndLine + meas.function;
+      ImPlot::PlotText(text.c_str(), pltMin.Min().x, (row) * (yIncrement),
                        ImVec2(100, 0));
       row++;
     }
