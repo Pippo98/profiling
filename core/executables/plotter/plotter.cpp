@@ -85,21 +85,64 @@ void Plotter::processSessionData() {
 void Plotter::plotTimeEvolution() {
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
-  if (ImPlot::BeginPlot("session", size)) {
+  static ImPlotRect limits(0, endTime, 0, 0);
+  const size_t maxAllowedSamples{2000};
+  static std::map<std::string, size_t> lastFrameSamples;
+
+  if (ImPlot::BeginPlot("TimeEvolution", size)) {
+    ImPlot::SetupAxis(ImAxis_X1, "time [s]", ImPlotAxisFlags_NoGridLines);
+    ImPlot::SetupAxis(ImAxis_Y1, "##measurement point",
+                      ImPlotAxisFlags_NoGridLines);
     ImPlot::GetCurrentContext()->CurrentItems->ColormapIdx = 0;
     ImPlot::PushPlotClipRect();
-    int row = 0;
+    int row = -1;
     for (auto &[loc, meas] : measurements) {
+      row++;
       auto col = ImPlot::NextColormapColorU32();
-      for (int i = 0; i < meas.timeData.size(); i++) {
+
+      if (limits.Min().y > yIncrement * (row + 1)) {
+        continue;
+      }
+      if (limits.Max().y < yIncrement * row) {
+        break;
+      }
+      size_t lastSamples = lastFrameSamples[loc];
+      lastFrameSamples[loc] = 0;
+      int skipEvery = 0;
+      if (lastSamples > maxAllowedSamples) {
+        float ratio =
+            (float)(maxAllowedSamples) / (lastSamples - maxAllowedSamples);
+        if (ratio > 1) {
+          skipEvery = 1 + (int)ratio;
+        } else {
+          skipEvery = -1.0f / ratio;
+        }
+      }
+
+      for (size_t i = 0; i < meas.timeData.size(); i++) {
         const auto &td = meas.timeData[i];
+        if (td.time + td.duration < limits.Min().x) {
+          continue;
+        }
+        if (td.time > limits.Max().x) {
+          break;
+        }
+        lastFrameSamples[loc]++;
+
+        if (skipEvery != 0) {
+          if (skipEvery > 0 && lastFrameSamples[loc] % skipEvery == 0) {
+            continue;
+          } else if (skipEvery < 0 &&
+                     lastFrameSamples[loc] % (-skipEvery) != 0) {
+            continue;
+          }
+        }
         ImVec2 rmin =
             ImPlot::PlotToPixels(ImPlotPoint(td.time, yIncrement * row));
         ImVec2 rmax = ImPlot::PlotToPixels(
             ImPlotPoint(td.time + td.duration, yIncrement * (row + 1)));
         ImPlot::GetPlotDrawList()->AddRectFilled(rmin, rmax, col);
       }
-      row++;
     }
 
     ImPlot::PopPlotClipRect();
@@ -110,11 +153,11 @@ void Plotter::plotTimeEvolution() {
       ImPlot::PlotLine("Duration", xDuration, yLocation, 2);
     }
 
+    limits = ImPlot::GetPlotLimits();
     row = 0;
     for (auto &[loc, meas] : measurements) {
-      auto pltMin = ImPlot::GetPlotLimits();
       std::string text = meas.fileAndLine + meas.function;
-      ImPlot::PlotText(text.c_str(), pltMin.Min().x, (row + 0.5) * (yIncrement),
+      ImPlot::PlotText(text.c_str(), limits.Min().x, (row + 0.5) * (yIncrement),
                        ImVec2(100, 0));
       row++;
     }

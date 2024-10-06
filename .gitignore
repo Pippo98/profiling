@@ -38,6 +38,8 @@ bin/
 # cache
 .cache/
 
+.kvp_storage
+imgui.ini
 compile_commands.json
 
 # VS Code
