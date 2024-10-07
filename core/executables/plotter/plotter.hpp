@@ -13,15 +13,16 @@ struct measurement_element_t {
   double meanDuration;
   double standardDeviation;
 
+  std::string path;
   std::string file;
   uint64_t line;
   std::string function;
 };
 inline std::string getLocation(const measurement_element_t &el) {
-  return el.file + "(" + std::to_string(el.line) + "): " + el.function;
+  return el.path + "(" + std::to_string(el.line) + "): " + el.function;
 }
 inline std::string getLocation(const session_row_t &el) {
-  return el.file + "(" + std::to_string(el.line) + "): " + el.function;
+  return el.path + "(" + std::to_string(el.line) + "): " + el.function;
 }
 
 class Plotter : public App {

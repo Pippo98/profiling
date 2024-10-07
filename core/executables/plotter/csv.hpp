@@ -11,7 +11,7 @@ struct __attribute__((packed)) session_row_binary_t {
 struct session_row_t {
   double time;
   double duration;
-  std::string file;
+  std::string path;
   int line;
   std::string function;
 };

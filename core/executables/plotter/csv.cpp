@@ -20,7 +20,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
 
   struct id_map {
     uint64_t id;
-    std::string file;
+    std::string path;
     int line;
     std::string function;
   };
@@ -32,7 +32,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     id_map el;
     std::string idStr, lineStr;
 
-    std::getline(ss, el.file, ',');
+    std::getline(ss, el.path, ',');
     std::getline(ss, lineStr, ',');
     std::getline(ss, el.function, ',');
     std::getline(ss, idStr);
@@ -51,7 +51,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
   while (fread(&ser, sizeof(ser), 1, csv)) {
     session_row_t row;
 
-    row.file = locationIDMap[ser.location_id].file;
+    row.path = locationIDMap[ser.location_id].path;
     row.line = locationIDMap[ser.location_id].line;
     row.function = locationIDMap[ser.location_id].function;
     row.time = ser.time;

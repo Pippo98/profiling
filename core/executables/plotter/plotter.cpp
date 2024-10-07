@@ -4,6 +4,7 @@
 #include "implot.h"
 #include "kvp.hpp"
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 
 void Plotter::Draw() {
@@ -62,7 +63,8 @@ void Plotter::processSessionData() {
     measurement_element_t &meas = measurements[getLocation(row)];
     meas.function = row.function;
     meas.line = row.line;
-    meas.file = row.file;
+    meas.path = row.path;
+    meas.file = std::filesystem::path(row.path).filename();
     meas.timeData.push_back({row.time, row.duration});
     meas.meanDuration += row.duration;
   }
@@ -82,6 +84,10 @@ void Plotter::processSessionData() {
 }
 
 void Plotter::plotTimeEvolution() {
+
+  static double lowerThreshold = 0.0;
+  ImGui::InputDouble("Skip samples with duration less than", &lowerThreshold);
+
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
   static ImPlotRect limits(0, endTime, 0, 0);
@@ -92,6 +98,29 @@ void Plotter::plotTimeEvolution() {
     ImPlot::SetupAxis(ImAxis_X1, "time [s]", ImPlotAxisFlags_NoGridLines);
     ImPlot::SetupAxis(ImAxis_Y1, "##measurement point",
                       ImPlotAxisFlags_NoGridLines);
+
+    static bool wasHovered;
+
+    if (wasHovered) {
+      float perc = 0.008;
+      const auto shiftLimits = [](float perc, const ImPlotRect &lim) -> ImVec2 {
+        float range = lim.Max().x - lim.Min().x;
+        return ImVec2(lim.Min().x + perc * range, lim.Max().x + perc * range);
+      };
+      if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) {
+        auto newLim = shiftLimits(-perc, limits);
+        ImPlot::SetupAxisLimits(ImAxis_X1, newLim.x, newLim.y,
+                                ImGuiCond_Always);
+      } else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) {
+        auto newLim = shiftLimits(perc, limits);
+        ImPlot::SetupAxisLimits(ImAxis_X1, newLim.x, newLim.y,
+                                ImGuiCond_Always);
+      }
+    }
+    wasHovered = ImPlot::IsPlotHovered();
+    limits = ImPlot::GetPlotLimits();
+    auto limitsPixels = ImPlot::PlotToPixels(limits.Min());
+
     ImPlot::GetCurrentContext()->CurrentItems->ColormapIdx = 0;
     ImPlot::PushPlotClipRect();
     int row = -1;
@@ -105,6 +134,7 @@ void Plotter::plotTimeEvolution() {
       if (limits.Max().y < yIncrement * row) {
         break;
       }
+
       size_t lastSamples = lastFrameSamples[loc];
       lastFrameSamples[loc] = 0;
       int skipEvery = 0;
@@ -125,6 +155,9 @@ void Plotter::plotTimeEvolution() {
         }
         if (td.time > limits.Max().x) {
           break;
+        }
+        if (td.duration < lowerThreshold) {
+          continue;
         }
         lastFrameSamples[loc]++;
 
@@ -152,12 +185,13 @@ void Plotter::plotTimeEvolution() {
       ImPlot::PlotLine("Duration", xDuration, yLocation, 2);
     }
 
-    limits = ImPlot::GetPlotLimits();
     row = 0;
     for (auto &[loc, meas] : measurements) {
-      std::string text = loc;
+      std::string text =
+          meas.file + " (" + std::to_string(meas.line) + "): " + meas.function;
+      float sizeX = ImGui::CalcTextSize(text.c_str()).x;
       ImPlot::PlotText(text.c_str(), limits.Min().x, (row + 0.5) * (yIncrement),
-                       ImVec2(100, 0));
+                       ImVec2(sizeX / 2.0f, 0));
       row++;
     }
 
@@ -200,9 +234,11 @@ void Plotter::plotBars() {
     row = 0;
     auto pltMin = ImPlot::GetPlotLimits();
     for (auto &[loc, meas] : measurements) {
-      std::string text = loc;
+      std::string text =
+          meas.file + " (" + std::to_string(meas.line) + "): " + meas.function;
+      float sizeX = ImGui::CalcTextSize(text.c_str()).x;
       ImPlot::PlotText(text.c_str(), pltMin.Min().x, (row) * (yIncrement),
-                       ImVec2(100, 0));
+                       ImVec2(sizeX / 2.0f, 0));
       row++;
     }
 
