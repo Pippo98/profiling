@@ -59,15 +59,15 @@ std::string extractFileAndLine(const std::string &input) {
 void Plotter::processSessionData() {
   measurements.clear();
   for (const auto &row : sessionData) {
-    measurement_element_t &meas = measurements[row.location];
+    measurement_element_t &meas = measurements[getLocation(row)];
+    meas.function = row.function;
+    meas.line = row.line;
+    meas.file = row.file;
     meas.timeData.push_back({row.time, row.duration});
     meas.meanDuration += row.duration;
   }
   endTime = 0.0;
   for (auto &[loc, meas] : measurements) {
-    meas.location = loc;
-    meas.function = extractFunctionName(loc);
-    meas.fileAndLine = extractFileAndLine(loc);
     meas.standardDeviation = 0.0;
     meas.meanDuration /= meas.timeData.size();
     endTime = std::max(endTime, meas.timeData.back().time);
@@ -76,9 +76,8 @@ void Plotter::processSessionData() {
           std::pow(timeData.duration - meas.meanDuration, 2.0);
     }
     meas.standardDeviation = std::sqrt(meas.standardDeviation);
-    std::cout << meas.fileAndLine << " " << meas.function << ": "
-              << meas.meanDuration << " " << meas.standardDeviation
-              << std::endl;
+    std::cout << getLocation(meas) << " => " << meas.meanDuration << " "
+              << meas.standardDeviation << std::endl;
   }
 }
 
@@ -86,7 +85,7 @@ void Plotter::plotTimeEvolution() {
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
   static ImPlotRect limits(0, endTime, 0, 0);
-  const size_t maxAllowedSamples{2000};
+  const size_t maxAllowedSamples{1000};
   static std::map<std::string, size_t> lastFrameSamples;
 
   if (ImPlot::BeginPlot("TimeEvolution", size)) {
@@ -156,7 +155,7 @@ void Plotter::plotTimeEvolution() {
     limits = ImPlot::GetPlotLimits();
     row = 0;
     for (auto &[loc, meas] : measurements) {
-      std::string text = meas.fileAndLine + meas.function;
+      std::string text = loc;
       ImPlot::PlotText(text.c_str(), limits.Min().x, (row + 0.5) * (yIncrement),
                        ImVec2(100, 0));
       row++;
@@ -201,7 +200,7 @@ void Plotter::plotBars() {
     row = 0;
     auto pltMin = ImPlot::GetPlotLimits();
     for (auto &[loc, meas] : measurements) {
-      std::string text = meas.fileAndLine + meas.function;
+      std::string text = loc;
       ImPlot::PlotText(text.c_str(), pltMin.Min().x, (row) * (yIncrement),
                        ImVec2(100, 0));
       row++;

@@ -2,10 +2,18 @@
 
 #include <string>
 #include <vector>
+
+struct __attribute__((packed)) session_row_binary_t {
+  double time;
+  uint64_t location_id;
+  double duration;
+};
 struct session_row_t {
   double time;
-  std::string location;
   double duration;
+  std::string file;
+  int line;
+  std::string function;
 };
 
 bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data);
