@@ -1,8 +1,9 @@
 #pragma once
 
+#include <map>
+
 #include "app_utils/app.hpp"
 #include "core/executables/plotter/csv.hpp"
-#include <map>
 
 struct measurement_element_t {
   struct time_and_duration {
@@ -26,15 +27,15 @@ inline std::string getLocation(const session_row_t &el) {
 }
 
 class Plotter : public App {
-protected:
+ protected:
   virtual void Draw();
 
-private:
+ private:
   void processSessionData();
   void plotTimeEvolution();
   void plotBars();
 
-  bool sessionCsvValid;
+  bool sessionCsvValid = false;
   std::vector<session_row_t> sessionData;
   std::map<std::string, measurement_element_t> measurements;
   double endTime;

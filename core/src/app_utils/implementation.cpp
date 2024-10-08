@@ -19,7 +19,7 @@ void App::Run() {
   }
 }
 void App::Shutdown() {
-  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplOpenGL2_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
   glfwDestroyWindow(window);
@@ -38,7 +38,7 @@ namespace render {
 
 void NewFrame() {
   glfwPollEvents();
-  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplOpenGL2_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   window::Dockspace(ImGui::GetMainViewport()->WorkSize.x,
@@ -56,7 +56,7 @@ void Render(GLFWwindow *window, ImVec4 clearColor) {
                clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
   if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
     ImGui::UpdatePlatformWindows();
     ImGui::RenderPlatformWindowsDefault();
@@ -129,7 +129,7 @@ void InitImgui(GLFWwindow *window) {
 
   // Setup Platform/Renderer backends
   ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init();
+  ImGui_ImplOpenGL2_Init();
 }
 
 void Dockspace(float width, float height) {
