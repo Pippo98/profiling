@@ -32,9 +32,9 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     id_map el;
     std::string idStr, lineStr;
 
-    std::getline(ss, el.path, ',');
-    std::getline(ss, lineStr, ',');
-    std::getline(ss, el.function, ',');
+    std::getline(ss, el.path, ';');
+    std::getline(ss, lineStr, ';');
+    std::getline(ss, el.function, ';');
     std::getline(ss, idStr);
 
     try {

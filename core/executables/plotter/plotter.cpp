@@ -103,6 +103,10 @@ void Plotter::plotTimeEvolution() {
 
     if (wasHovered) {
       float perc = 0.008;
+      if (ImGui::IsKeyDown(ImGuiKey_LeftShift) ||
+          ImGui::IsKeyDown(ImGuiKey_RightShift)) {
+        perc *= 3.0;
+      }
       const auto shiftLimits = [](float perc, const ImPlotRect &lim) -> ImVec2 {
         float range = lim.Max().x - lim.Min().x;
         return ImVec2(lim.Min().x + perc * range, lim.Max().x + perc * range);
@@ -139,16 +143,20 @@ void Plotter::plotTimeEvolution() {
       lastFrameSamples[loc] = 0;
       int skipEvery = 0;
       if (lastSamples > maxAllowedSamples) {
-        float ratio =
-            (float)(maxAllowedSamples) / (lastSamples - maxAllowedSamples);
+        double ratio =
+            (double)(maxAllowedSamples) / (lastSamples - maxAllowedSamples);
         if (ratio > 1) {
           skipEvery = 1 + (int)ratio;
         } else {
-          skipEvery = -1.0f / ratio;
+          skipEvery = -1.0 / ratio;
         }
+        if (skipEvery == 0)
+          skipEvery++;
       }
 
-      for (size_t i = 0; i < meas.timeData.size(); i++) {
+      size_t startIdx = 0, i = 0;
+      for (i = 0; i < meas.timeData.size();
+           skipEvery >= 0 ? i++ : i += -skipEvery) {
         const auto &td = meas.timeData[i];
         if (td.time + td.duration < limits.Min().x) {
           continue;
@@ -156,10 +164,13 @@ void Plotter::plotTimeEvolution() {
         if (td.time > limits.Max().x) {
           break;
         }
+        if (!startIdx) {
+          startIdx = i;
+        }
         if (td.duration < lowerThreshold) {
+          startIdx++;
           continue;
         }
-        lastFrameSamples[loc]++;
 
         if (skipEvery != 0) {
           if (skipEvery > 0 && lastFrameSamples[loc] % skipEvery == 0) {
@@ -175,6 +186,7 @@ void Plotter::plotTimeEvolution() {
             ImPlotPoint(td.time + td.duration, yIncrement * (row + 1)));
         ImPlot::GetPlotDrawList()->AddRectFilled(rmin, rmax, col);
       }
+      lastFrameSamples[loc] = i - startIdx;
     }
 
     ImPlot::PopPlotClipRect();
