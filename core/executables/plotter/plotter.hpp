@@ -27,10 +27,10 @@ inline std::string getLocation(const session_row_t &el) {
 }
 
 class Plotter : public App {
- protected:
+protected:
   virtual void Draw();
 
- private:
+private:
   void processSessionData();
   void plotTimeEvolution();
   void plotBars();
@@ -39,4 +39,5 @@ class Plotter : public App {
   std::vector<session_row_t> sessionData;
   std::map<std::string, measurement_element_t> measurements;
   double endTime;
+  std::string loadedPath;
 };

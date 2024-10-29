@@ -14,6 +14,7 @@ void Plotter::Draw() {
     ImGui::InputText("Base path", &path);
     if (ImGui::Button("Open")) {
       sessionCsvValid = ReadSessionCSV(path, sessionData);
+      loadedPath = path;
       processSessionData();
     }
     ImGui::End();
@@ -184,7 +185,14 @@ void Plotter::plotTimeEvolution() {
             ImPlot::PlotToPixels(ImPlotPoint(td.time, yIncrement * row));
         ImVec2 rmax = ImPlot::PlotToPixels(
             ImPlotPoint(td.time + td.duration, yIncrement * (row + 1)));
+        ImPlotRect rect(rmin.x, rmax.x, rmin.y, rmax.y);
         ImPlot::GetPlotDrawList()->AddRectFilled(rmin, rmax, col);
+        if (rect.Contains(ImGui::GetMousePos())) {
+          if (ImGui::BeginTooltip()) {
+            ImGui::Text("%s", loc.c_str());
+            ImGui::EndTooltip();
+          }
+        }
       }
       lastFrameSamples[loc] = i - startIdx;
     }
@@ -212,9 +220,11 @@ void Plotter::plotTimeEvolution() {
 }
 
 void Plotter::plotBars() {
+  ImGui::Text("Loaded path: %s", loadedPath.c_str());
   static int opts = 0;
   ImGui::RadioButton("Mean", &opts, 0);
   ImGui::RadioButton("Cumulative", &opts, 1);
+  ImGui::RadioButton("Percentage", &opts, 2);
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
   if (ImPlot::BeginPlot("session", size)) {
@@ -228,8 +238,12 @@ void Plotter::plotBars() {
       if (opts == 0) {
         bar[row] = meas.meanDuration;
         std[row] = meas.standardDeviation;
-      } else {
+      } else if (opts == 1) {
         bar[row] = meas.meanDuration * meas.timeData.size();
+      } else if (opts == 2) {
+        bar[row] = (meas.meanDuration * meas.timeData.size()) / endTime * 100.0;
+      } else {
+        bar[row] = 0;
       }
       row++;
     }
