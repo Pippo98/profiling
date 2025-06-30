@@ -11,6 +11,12 @@ extern ImFont *h2;
 extern ImFont *h3;
 extern ImFont *text;
 
+template<typename ValueType>
+struct time_value_pair_t{
+  double time;
+  ValueType value;
+};
+
 struct measurement_element_t {
   struct time_and_duration {
     double time = -1;
@@ -48,4 +54,10 @@ private:
   std::map<std::string, measurement_element_t> measurements;
   double endTime;
   std::string loadedPath;
+
+  // list of measuresPerSeconds along the full log. measures how 
+  // many rows per seconds there were.
+  // Drops in this values means that nothing happened in those instances
+  std::vector<time_value_pair_t<double>> measurementsPerSecond;
+  std::vector<time_value_pair_t<double>> measurementsPerSecondAvg;
 };
