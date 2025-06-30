@@ -2,8 +2,14 @@
 
 #include <map>
 
+#include "imgui.h"
 #include "app_utils/app.hpp"
 #include "core/executables/plotter/csv.hpp"
+
+extern ImFont *h1;
+extern ImFont *h2;
+extern ImFont *h3;
+extern ImFont *text;
 
 struct measurement_element_t {
   struct time_and_duration {

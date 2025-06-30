@@ -1,11 +1,40 @@
 #include "plotter.hpp"
 #include "core/executables/plotter/csv.hpp"
+#include "core/src/defines.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "kvp.hpp"
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+
+ImFont *h1;
+ImFont *h2;
+ImFont *h3;
+ImFont *text;
+
+void loadImGuiFont() {
+  h1 = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 16);
+  h2 = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 18);
+  h3 = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 22);
+  text = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 14);
+  if(h1 == nullptr){
+    h1 = ImGui::GetFont();
+    h2 = ImGui::GetFont();
+    h3 = ImGui::GetFont();
+    text = ImGui::GetFont();
+  }
+}
+
+int main(int argc, char **argv) {
+  Plotter plotter;
+  plotter.SetTitle("Profiler plotter");
+  plotter.Init();
+  loadImGuiFont();
+  plotter.Run();
+  plotter.Shutdown();
+  return EXIT_SUCCESS;
+}
 
 void Plotter::Draw() {
   if (!sessionCsvValid) {
@@ -28,15 +57,6 @@ void Plotter::Draw() {
     }
     ImGui::End();
   }
-}
-
-int main(void) {
-  Plotter plotter;
-  plotter.SetTitle("Profiler plotter");
-  plotter.Init();
-  plotter.Run();
-  plotter.Shutdown();
-  return EXIT_SUCCESS;
 }
 
 std::string extractFunctionName(const std::string &input) {

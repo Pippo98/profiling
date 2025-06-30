@@ -1,5 +1,7 @@
 set(CDIR ${CMAKE_CURRENT_LIST_DIR})
 
+configure_file(${CDIR}/src/defines.hpp.in ${CDIR}/src/defines.hpp)
+
 include_directories(
     ${EXTERNAL_DIRS}
     ${CDIR}/src
