@@ -12,7 +12,7 @@ void Plotter::Draw() {
     ImGui::Begin("Open");
     std::string &path = KVP::getMutable("base path");
     ImGui::InputText("Base path", &path);
-    if (ImGui::Button("Open")) {
+    if (ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
       sessionCsvValid = ReadSessionCSV(path, sessionData);
       loadedPath = path;
       processSessionData();
@@ -67,11 +67,16 @@ void Plotter::processSessionData() {
     meas.path = row.path;
     meas.file = std::filesystem::path(row.path).filename();
     meas.timeData.push_back({row.time, row.duration});
+    if(meas.startAndDuration.time == -1){
+        meas.startAndDuration.time = row.time;
+    }
     meas.meanDuration += row.duration;
+    meas.startAndDuration.duration = row.time + row.duration;
   }
   endTime = 0.0;
   for (auto &[loc, meas] : measurements) {
     meas.standardDeviation = 0.0;
+    meas.meanFrequency = meas.timeData.size() / meas.startAndDuration.duration;
     meas.meanDuration /= meas.timeData.size();
     endTime = std::max(endTime, meas.timeData.back().time);
     for (const auto &timeData : meas.timeData) {
@@ -84,9 +89,31 @@ void Plotter::processSessionData() {
   }
 }
 
+void drawElementTooltip(const measurement_element_t &element, ssize_t timeInstanceId=-1) {
+  if(ImGui::BeginItemTooltip()) {
+    
+    ImGui::Text("Function: %s", element.function.c_str());
+    ImGui::Text("File and line: %s:%ld", element.file.c_str(), element.line);
+    ImGui::Separator();
+    ImGui::Text("Hits: %ld", element.timeData.size());
+    ImGui::Text("Mean duration: %0.9f", element.meanDuration);
+    ImGui::Text("Mean frequency: %0.3f", element.meanFrequency);
+    ImGui::Text("Cumulative time: %0.9f", element.meanDuration * element.timeData.size());
+    if(timeInstanceId != -1) {
+      ImGui::Separator();
+      ImGui::Text("Hit #: %ld", timeInstanceId);
+      ImGui::Text("Time: %0.9f s", element.timeData[timeInstanceId].time);
+      ImGui::Text("Duration: %0.9f s", element.timeData[timeInstanceId].duration);
+    }
+    
+    ImGui::EndTooltip();
+  }
+}
+
 void Plotter::plotTimeEvolution() {
 
   static double lowerThreshold = 0.0;
+  ImGui::SetNextItemWidth(200);
   ImGui::InputDouble("Skip samples with duration less than", &lowerThreshold);
 
   auto size = ImGui::GetContentRegionAvail();
@@ -94,6 +121,9 @@ void Plotter::plotTimeEvolution() {
   static ImPlotRect limits(0, endTime, 0, 0);
   const size_t maxAllowedSamples{1000};
   static std::map<std::string, size_t> lastFrameSamples;
+
+  ssize_t showTooltip = -1;
+  std::string tooltipElement = "";
 
   if (ImPlot::BeginPlot("TimeEvolution", size)) {
     ImPlot::SetupAxis(ImAxis_X1, "time [s]", ImPlotAxisFlags_NoGridLines);
@@ -187,11 +217,10 @@ void Plotter::plotTimeEvolution() {
             ImPlotPoint(td.time + td.duration, yIncrement * (row + 1)));
         ImPlotRect rect(rmin.x, rmax.x, rmin.y, rmax.y);
         ImPlot::GetPlotDrawList()->AddRectFilled(rmin, rmax, col);
-        if (rect.Contains(ImGui::GetMousePos())) {
-          if (ImGui::BeginTooltip()) {
-            ImGui::Text("%s", loc.c_str());
-            ImGui::EndTooltip();
-          }
+        const auto &mousePos = ImPlot::GetPlotMousePos();
+        if (mousePos.x > td.time && mousePos.x < td.time + td.duration && mousePos.y > yIncrement * row && mousePos.y < yIncrement * (row + 1)) {
+          showTooltip = i;
+          tooltipElement = loc;
         }
       }
       lastFrameSamples[loc] = i - startIdx;
@@ -217,14 +246,24 @@ void Plotter::plotTimeEvolution() {
 
     ImPlot::EndPlot();
   }
+
+  if(showTooltip != -1) {
+    drawElementTooltip(measurements[tooltipElement], showTooltip);
+  }
 }
 
 void Plotter::plotBars() {
   ImGui::Text("Loaded path: %s", loadedPath.c_str());
+  ImGui::SameLine();
+  if(ImGui::Button("Close")){
+    sessionCsvValid = false;
+  }
   static int opts = 0;
   ImGui::RadioButton("Mean", &opts, 0);
   ImGui::RadioButton("Cumulative", &opts, 1);
   ImGui::RadioButton("Percentage", &opts, 2);
+  ImGui::RadioButton("Counts", &opts, 3);
+  ImGui::RadioButton("Frequency", &opts, 4);
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
   if (ImPlot::BeginPlot("session", size)) {
@@ -242,6 +281,10 @@ void Plotter::plotBars() {
         bar[row] = meas.meanDuration * meas.timeData.size();
       } else if (opts == 2) {
         bar[row] = (meas.meanDuration * meas.timeData.size()) / endTime * 100.0;
+      } else if (opts == 3) {
+        bar[row] = meas.timeData.size();
+      } else if (opts == 4) {
+        bar[row] = meas.meanFrequency;
       } else {
         bar[row] = 0;
       }
@@ -253,7 +296,7 @@ void Plotter::plotBars() {
                      ImPlotBarsFlags_Horizontal);
     if (opts == 0) {
       ImPlot::PlotErrorBars("Standard deviation", bar.data(), yPosition.data(),
-                            std.data(), bar.size(), yIncrement / 2.0,
+                            std.data(), bar.size(),
                             ImPlotErrorBarsFlags_Horizontal);
     }
 

@@ -7,12 +7,14 @@
 
 struct measurement_element_t {
   struct time_and_duration {
-    double time;
-    double duration;
+    double time = -1;
+    double duration = 0.0;
   };
+  time_and_duration startAndDuration;
   std::vector<time_and_duration> timeData;
   double meanDuration;
   double standardDeviation;
+  double meanFrequency;
 
   std::string path;
   std::string file;
