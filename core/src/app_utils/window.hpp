@@ -5,7 +5,7 @@
 namespace window {
 
 void GlwfErrorCallback(int error, const char *description);
-GLFWwindow *OpenWindow();
+GLFWwindow *OpenWindow(const char *title);
 void InitImgui(GLFWwindow *window);
 void Dockspace(float width, float height);
 

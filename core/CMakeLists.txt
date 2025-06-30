@@ -14,11 +14,7 @@ target_link_libraries(window_utils
     implot
     )
 
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-
-add_executable(example ${CDIR}/executables/example/example.cpp)
-target_link_libraries(example window_utils)
 
 add_executable(plotter
     ${CDIR}/executables/plotter/plotter.cpp

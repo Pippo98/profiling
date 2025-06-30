@@ -4,7 +4,7 @@
 
 void App::SetTitle(const std::string &_title) { title = _title; }
 bool App::Init() {
-  window = window::OpenWindow();
+  window = window::OpenWindow(title.c_str());
   if (window == nullptr) {
     return false;
   }
@@ -74,7 +74,7 @@ void GlwfErrorCallback(int error, const char *description) {
   fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-GLFWwindow *OpenWindow() {
+GLFWwindow *OpenWindow(const char *title) {
   // Setup window
   glfwSetErrorCallback(GlwfErrorCallback);
   glewExperimental = GL_TRUE;
@@ -94,7 +94,7 @@ GLFWwindow *OpenWindow() {
   glfwGetMonitorWorkarea(monitor, &x, &y, &w, &h);
 
   glfwWindowHint(GLFW_MAXIMIZED, GL_TRUE);
-  GLFWwindow *window = glfwCreateWindow(w, h, "example_1", nullptr, nullptr);
+  GLFWwindow *window = glfwCreateWindow(w, h, title, nullptr, nullptr);
 
   if (window == nullptr) {
     return nullptr;
