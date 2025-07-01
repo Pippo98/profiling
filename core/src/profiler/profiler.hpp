@@ -28,12 +28,12 @@ struct FileCloser {
 };
 
 #if ENABLE_PROFILING == true
-#define MEASURE_SCOPE(instance_name) MeasureScope instance_name;
+#define MEASURE_SCOPE(instance_name) static LocationID locId; MeasureScope instance_name(locId);
 #else
 #define MEASURE_SCOPE(instance_name)
 #endif
 
-class ProfilingSession;
+class LocationID;
 
 struct measure_t {
   double time;
@@ -43,7 +43,7 @@ struct measure_t {
 
 class ProfilingSession {
  private:
-  void addMeasure(const source_loc &loc, const time_point &start,
+  void addMeasure(const LocationID &loc, const time_point &start,
                   const time_point &end);
 
   uint64_t getLocationID(const source_loc &loc) {
@@ -58,9 +58,10 @@ class ProfilingSession {
   }
 
   friend class MeasureScope;
+  friend class LocationID;
+  ProfilingSession() = default;
 
  public:
-  ProfilingSession() = default;
   ~ProfilingSession();
 
   void initialize(const std::string &outFolder);
@@ -70,7 +71,6 @@ class ProfilingSession {
   bool enabled() const;
 
   static ProfilingSession &getGlobalInstace();
-
  private:
   std::mutex mtx;
   bool amIEnabled;
@@ -84,19 +84,21 @@ class ProfilingSession {
   std::unique_ptr<FILE, FileCloser> session;
 };
 
+class LocationID {
+public:
+  LocationID(const source_loc &loc = std::source_location::current()) :
+  locationID(ProfilingSession::getGlobalInstace().getLocationID(loc)) {}
+
+  const uint64_t locationID;
+};
+
 class MeasureScope {
  public:
-  MeasureScope(const source_loc &loc = std::source_location::current())
-      : MeasureScope(&ProfilingSession::getGlobalInstace(), loc) {}
-  MeasureScope(ProfilingSession *session,
-               const source_loc &_loc = std::source_location::current())
-      : session(session), loc(_loc) {
-    start = std::chrono::steady_clock::now();
-  }
+  MeasureScope(const LocationID &_loc)
+      : loc(_loc), start(std::chrono::steady_clock::now()) {}
   ~MeasureScope();
 
  private:
-  ProfilingSession *session;
-  source_loc loc;
-  time_point start;
+  const LocationID &loc;
+  const time_point start;
 };

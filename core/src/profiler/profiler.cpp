@@ -16,10 +16,10 @@ static inline double getDeltaSecs(const auto &delta_t) {
 }
 
 MeasureScope::~MeasureScope() {
-  session->addMeasure(loc, start, std::chrono::steady_clock::now());
+  ProfilingSession::getGlobalInstace().addMeasure(loc, start, std::chrono::steady_clock::now());
 }
 
-void ProfilingSession::addMeasure(const source_loc &loc, const time_point &start,
+void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start,
                                   const time_point &end) {
   if (!enabled()) {
     return;
@@ -29,8 +29,8 @@ void ProfilingSession::addMeasure(const source_loc &loc, const time_point &start
   }
 
   std::scoped_lock lck(mtx);
-  measure_t serializer;
-  serializer.id = getLocationID(loc);
+  static measure_t serializer;
+  serializer.id = loc.locationID;
   serializer.time = getDeltaSecs(start - initializationTime);
   serializer.duration = getDeltaSecs(end - start);
   fwrite(&serializer, sizeof(serializer), 1, session.get());
