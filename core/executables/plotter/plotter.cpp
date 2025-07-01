@@ -171,6 +171,7 @@ void drawElementTooltip(const measurement_element_t &element, ssize_t timeInstan
       ImGui::Text("Time: %0.9f s", element.timeData[timeInstanceId].time);
       ImGui::Text("Duration: %0.9f s", element.timeData[timeInstanceId].duration);
     }
+    ImGui::Text("Profiling is in the order of 1e-7 s");
     
     ImGui::EndTooltip();
   }

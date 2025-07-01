@@ -38,7 +38,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     std::getline(ss, idStr);
 
     try {
-      el.id = std::stoi(idStr);
+      el.id = std::stoull(idStr);
       el.line = std::stoi(lineStr);
       locationIDMap[el.id] = el;
     } catch (const std::invalid_argument &e) {

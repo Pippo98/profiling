@@ -25,9 +25,10 @@ int main(void) {
   long durations[iterations];
   int a = 0;
   time_point total_start = std::chrono::steady_clock::now();
+  time_point t0, t1;
+  time_point start;
   for (int i = 0; i < iterations; i++) {
-    time_point t0, t1;
-    time_point start = std::chrono::steady_clock::now();
+    start = std::chrono::steady_clock::now();
     {
       static LocationID locId;
       MeasureScope scope(locId);
@@ -56,6 +57,7 @@ int main(void) {
   }
   mean /= iterations;
   printf("Mean: %0.9f s \n", mean / 1e9);
+  std::cout << "Mean: " << mean / 1e9 << std::endl;
 
   return EXIT_SUCCESS;
 }
