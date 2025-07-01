@@ -32,6 +32,8 @@ struct measurement_element_t {
   std::string file;
   uint64_t line;
   std::string function;
+
+  size_t durationSortedIndex;
 };
 inline std::string getLocation(const measurement_element_t &el) {
   return el.path + "(" + std::to_string(el.line) + "): " + el.function;
@@ -60,4 +62,5 @@ private:
   // Drops in this values means that nothing happened in those instances
   std::vector<time_value_pair_t<double>> measurementsPerSecond;
   std::vector<time_value_pair_t<double>> measurementsPerSecondAvg;
+  std::vector<std::string> keysByDuration;
 };

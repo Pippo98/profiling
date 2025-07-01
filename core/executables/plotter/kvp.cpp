@@ -1,6 +1,6 @@
 #include "kvp.hpp"
 
-#include "core/executables/plotter/defines.hpp"
+#include "defines.hpp"
 #include <fstream>
 #include <iostream>
 #include <map>
