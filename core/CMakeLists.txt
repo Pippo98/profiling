@@ -7,6 +7,9 @@ include_directories(
     ${CDIR}/src
 )
 
+add_library(profiler
+    ${CDIR}/src/profiler/profiler.cpp
+)
 add_library(window_utils
     ${CDIR}/src/app_utils/implementation.cpp
 )
