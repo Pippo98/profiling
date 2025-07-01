@@ -1,5 +1,6 @@
 #include "profiler.hpp"
 
+#include <cstdint>
 #include <inttypes.h>
 
 #include <cmath>
@@ -9,33 +10,34 @@
 
 #include "defines.hpp"
 
-static inline double getDeltaSecs(const auto &delta_t) {
+static inline constexpr double getDeltaSecs(const auto &delta_t) {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(delta_t)
              .count() /
          1e9;
 }
 
-MeasureScope::~MeasureScope() {
+MeasureScope::~MeasureScope() noexcept {
   ProfilingSession::getGlobalInstace().addMeasure(loc, start, std::chrono::steady_clock::now());
 }
 
 void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start,
-                                  const time_point &end) {
+                                  const time_point &end) noexcept {
   if (!enabled()) {
     return;
   }
   if (!initialized) [[unlikely]] {
-    throw std::runtime_error("Not initialized");
+    return;
   }
 
+  const measure_t serializer{
+    .time = getDeltaSecs(start - initializationTime),
+    .id = loc.locationID,
+    .duration = getDeltaSecs(end - start),
+  };
   std::scoped_lock lck(mtx);
-  static measure_t serializer;
-  serializer.id = loc.locationID;
-  serializer.time = getDeltaSecs(start - initializationTime);
-  serializer.duration = getDeltaSecs(end - start);
   fwrite(&serializer, sizeof(serializer), 1, session.get());
 }
-ProfilingSession &ProfilingSession::getGlobalInstace() {
+ProfilingSession &ProfilingSession::getGlobalInstace() noexcept {
   static ProfilingSession session;
   return session;
 }
@@ -69,5 +71,3 @@ ProfilingSession::~ProfilingSession() {
 void ProfilingSession::enable() { amIEnabled = true; }
 void ProfilingSession::disable() { amIEnabled = false; }
 bool ProfilingSession::enabled() const { return amIEnabled; }
-
-

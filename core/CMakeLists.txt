@@ -27,3 +27,6 @@ add_executable(plotter
     ${CDIR}/executables/plotter/kvp.cpp
     )
 target_link_libraries(plotter window_utils)
+
+add_executable(test_profiler ${CDIR}/executables/test_profiler.cpp)
+target_link_libraries(test_profiler profiler)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <memory>
@@ -44,17 +45,13 @@ struct measure_t {
 class ProfilingSession {
  private:
   void addMeasure(const LocationID &loc, const time_point &start,
-                  const time_point &end);
+                  const time_point &end) noexcept;
 
-  uint64_t getLocationID(const source_loc &loc) {
+  void addLocation(const source_loc &loc, const uint64_t &id) noexcept {
     const std::string sstr = std::string(loc.file_name()) + ";" +
                              std::to_string(loc.line()) + ";" +
                              loc.function_name();
-    if (locationIDMap.find(sstr) == locationIDMap.end()) {
-      locationIDMap[sstr] = locationIDCount;
-      locationIDCount++;
-    }
-    return locationIDMap.at(sstr);
+    locationIDMap[sstr] = id;
   }
 
   friend class MeasureScope;
@@ -70,7 +67,7 @@ class ProfilingSession {
   void disable();
   bool enabled() const;
 
-  static ProfilingSession &getGlobalInstace();
+  static ProfilingSession &getGlobalInstace() noexcept;
  private:
   std::mutex mtx;
   bool amIEnabled;
@@ -86,17 +83,36 @@ class ProfilingSession {
 
 class LocationID {
 public:
-  LocationID(const source_loc &loc = std::source_location::current()) :
-  locationID(ProfilingSession::getGlobalInstace().getLocationID(loc)) {}
+  static constexpr unsigned long hash(const source_loc &loc) {
+    unsigned long hash = 5381;
+
+    const auto &hashStr = [](unsigned long hash, const char *str) -> unsigned long {
+      char c;
+      while ((c = *str++)) {
+        hash = hash * 33 + c;
+      }
+      return hash;
+    };
+    hash = hashStr(hash, loc.file_name());
+    hash += loc.line();
+    hash = hashStr(hash, loc.function_name());
+
+    return hash;
+  }
+
+  LocationID(const source_loc &loc = std::source_location::current()) noexcept :
+  locationID(hash(loc)) {
+    ProfilingSession::getGlobalInstace().addLocation(loc, locationID);
+  }
 
   const uint64_t locationID;
 };
 
 class MeasureScope {
  public:
-  MeasureScope(const LocationID &_loc)
+  MeasureScope(const LocationID &_loc) noexcept
       : loc(_loc), start(std::chrono::steady_clock::now()) {}
-  ~MeasureScope();
+  ~MeasureScope() noexcept;
 
  private:
   const LocationID &loc;
