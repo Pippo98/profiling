@@ -57,6 +57,10 @@ private:
   double endTime;
   std::string loadedPath;
 
+  int previewFileLine;
+  std::string previewFileName;
+  std::vector<std::string> previewFileLines;
+
   // list of measuresPerSeconds along the full log. measures how 
   // many rows per seconds there were.
   // Drops in this values means that nothing happened in those instances

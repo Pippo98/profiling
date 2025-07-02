@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <fstream>
 
 ImFont *h1;
 ImFont *h2;
@@ -152,6 +153,8 @@ void drawElementTooltip(const measurement_element_t &element,
         ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]);
   }
   if (ImGui::BeginItemTooltip()) {
+    ImGui::Text("Press Enter to open file preview");
+    ImGui::Separator();
     ImGui::Text("Function:");
     ImGui::SameLine();
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s",
@@ -173,8 +176,6 @@ void drawElementTooltip(const measurement_element_t &element,
       ImGui::Text("Duration: %0.9f s",
                   element.timeData[timeInstanceId].duration);
     }
-    ImGui::Text("Profiling is in the order of 1e-7 s");
-
     ImGui::EndTooltip();
   }
 }
@@ -227,8 +228,9 @@ void Plotter::plotTimeEvolution() {
       }
       std::vector<time_value_pair_t<double>> means;
       for (auto itr = start; itr < end; itr += increment) {
-        means.push_back({.time = itr->time,
-                         .value = 1.0 / (((itr + 1)->value - itr->value) / 2.0)});
+        means.push_back(
+            {.time = itr->time,
+             .value = 1.0 / (((itr + 1)->value - itr->value) / 2.0)});
       }
 
       ImPlot::PlotScatter("Measures per second", &means[0].time,
@@ -348,6 +350,11 @@ void Plotter::plotTimeEvolution() {
             showTooltip = i;
             tooltipElement = loc;
             tooltipColor = col;
+
+            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+              previewFileName = meas.path;
+              previewFileLine = meas.line;
+            }
           }
         }
         lastFrameSamples[loc] = i - startIdx;
@@ -383,6 +390,56 @@ void Plotter::plotTimeEvolution() {
 
   if (showTooltip != -1) {
     drawElementTooltip(measurements[tooltipElement], showTooltip, tooltipColor);
+  }
+
+  static bool modalOpened = false;
+  static bool modalOpenedNow = false;
+
+  if(!previewFileName.empty() && previewFileLines.empty()) {
+    std::ifstream f(previewFileName, std::fstream::in);
+    previewFileLines.clear();
+    if(f.is_open()){
+      std::string line;
+      while (std::getline(f, line)) {
+        previewFileLines.push_back(line);
+      }
+      f.close();
+    }
+    previewFileName.clear();
+    ImGui::OpenPopup("File preview");
+    modalOpened = true;
+    modalOpenedNow = true;
+  }
+
+  if (ImGui::BeginPopupModal("File preview", &modalOpened)) {
+    for(int i = 0; i < previewFileLines.size(); i++){
+
+      ImGui::Text("%04d | ", i + 1);
+      ImGui::SameLine();
+      if(i + 1 == previewFileLine){
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 1.0, 0.0, 1.0));
+      }
+
+      ImGui::TextUnformatted(previewFileLines[i].c_str());
+
+      if(i + 1 == previewFileLine){
+        ImGui::PopStyleColor();
+        if(modalOpenedNow) {
+          ImGui::SetScrollHereY();
+        }
+      }
+    }
+
+    if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+      ImGui::CloseCurrentPopup();
+    }
+
+    modalOpenedNow = false;
+    ImGui::EndPopup();
+  }
+
+  if(!modalOpened) {
+    previewFileLines.clear();
   }
 }
 
