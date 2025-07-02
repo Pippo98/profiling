@@ -1,10 +1,11 @@
 #include "plotter.hpp"
 #include "core/executables/plotter/csv.hpp"
 #include "core/src/defines.hpp"
-#include "utils/style.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "kvp.hpp"
+#include "utils/style.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -15,11 +16,15 @@ ImFont *h3;
 ImFont *text;
 
 void loadImGuiFont() {
-  h1 = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 16);
-  h2 = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 18);
-  h3 = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 22);
-  text = ImGui::GetIO().Fonts->AddFontFromFileTTF(PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 14);
-  if(h1 == nullptr){
+  h1 = ImGui::GetIO().Fonts->AddFontFromFileTTF(
+      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 16);
+  h2 = ImGui::GetIO().Fonts->AddFontFromFileTTF(
+      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 18);
+  h3 = ImGui::GetIO().Fonts->AddFontFromFileTTF(
+      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 22);
+  text = ImGui::GetIO().Fonts->AddFontFromFileTTF(
+      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 14);
+  if (h1 == nullptr) {
     h1 = ImGui::GetFont();
     h2 = ImGui::GetFont();
     h3 = ImGui::GetFont();
@@ -84,8 +89,9 @@ std::string extractFileAndLine(const std::string &input) {
 
 void Plotter::processSessionData() {
   measurements.clear();
-  measurementsPerSecond.clear();
   keysByDuration.clear();
+  measurementsPerSecond.resize(sessionData.size());
+  std::vector<double> measurementsTimes(sessionData.size());
   for (size_t i = 0; i < sessionData.size(); i++) {
     const auto &row = sessionData[i];
 
@@ -96,33 +102,21 @@ void Plotter::processSessionData() {
     meas.path = row.path;
     meas.file = std::filesystem::path(row.path).filename();
     meas.timeData.push_back({row.time, row.duration});
-    if(meas.startAndDuration.time == -1) {
-        meas.startAndDuration.time = row.time;
+    if (meas.startAndDuration.time == -1) {
+      meas.startAndDuration.time = row.time;
     }
     meas.meanDuration += row.duration;
     meas.startAndDuration.duration = row.time + row.duration;
 
-    double measuresDeltaT = 0.0;
-    if(i > 0) {
-      measuresDeltaT = 1.0 / std::abs(row.time - sessionData[i - 1].time);
-    }
-    measurementsPerSecond.push_back({.time = row.time, .value = measuresDeltaT});
+    measurementsTimes[i] = row.time;
   }
 
-  std::sort(measurementsPerSecond.begin(), measurementsPerSecond.end(), [](const auto &a, const auto &b){
-    return a.time < b.time;
-  });
-  time_value_pair_t<double> avg;
-  for(size_t i = 0; i < measurementsPerSecond.size(); i++) {
-    if(i % 100 == 0) {
-      avg.time /= 100;
-      avg.value /= 100;
-      measurementsPerSecondAvg.push_back(avg);
-      avg.time = 0.0;
-      avg.value = 0.0;
-    }
-    avg.time += measurementsPerSecond[i].time;
-    avg.value += measurementsPerSecond[i].value;
+  std::sort(measurementsTimes.begin(), measurementsTimes.end());
+  for (size_t i = 1; i < measurementsTimes.size() - 1; i++) {
+    measurementsPerSecond[i].time = measurementsTimes[i];
+    measurementsPerSecond[i].value = measurementsPerSecond[i - 1].value +
+                                     measurementsTimes[i] -
+                                     measurementsTimes[i - 1];
   }
   endTime = 0.0;
   for (auto &[loc, meas] : measurements) {
@@ -139,46 +133,53 @@ void Plotter::processSessionData() {
               << meas.standardDeviation << std::endl;
     keysByDuration.push_back(loc);
   }
-  std::sort(keysByDuration.begin(), keysByDuration.end(), [&](const auto &a, const auto &b) {
-    const auto &elA = measurements[a];
-    const auto &elB = measurements[b];
-    return elA.meanDuration * elA.timeData.size() > elB.meanDuration * elB.timeData.size();
-  });
-  for(size_t i = 0; i < keysByDuration.size(); i++) {
+  std::sort(keysByDuration.begin(), keysByDuration.end(),
+            [&](const auto &a, const auto &b) {
+              const auto &elA = measurements[a];
+              const auto &elB = measurements[b];
+              return elA.meanDuration * elA.timeData.size() >
+                     elB.meanDuration * elB.timeData.size();
+            });
+  for (size_t i = 0; i < keysByDuration.size(); i++) {
     measurements[keysByDuration[i]].durationSortedIndex = i;
   }
 }
 
-void drawElementTooltip(const measurement_element_t &element, ssize_t timeInstanceId=-1, ImU32 borderColor=0) {
-  if(borderColor == 0) {
-    borderColor = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]);
+void drawElementTooltip(const measurement_element_t &element,
+                        ssize_t timeInstanceId = -1, ImU32 borderColor = 0) {
+  if (borderColor == 0) {
+    borderColor =
+        ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_Text]);
   }
-  if(ImGui::BeginItemTooltip()) {
+  if (ImGui::BeginItemTooltip()) {
     ImGui::Text("Function:");
     ImGui::SameLine();
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s", element.function.c_str());
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s",
+                       element.function.c_str());
     ImGui::Text("File and line:");
     ImGui::SameLine();
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s:%ld", element.file.c_str(), element.line);
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s:%ld",
+                       element.file.c_str(), element.line);
     ImGui::Separator();
     ImGui::Text("Hits: %ld", element.timeData.size());
     ImGui::Text("Mean duration: %0.9f s", element.meanDuration);
     ImGui::Text("Mean frequency: %0.3f Hz", element.meanFrequency);
-    ImGui::Text("Cumulative time: %0.9f s", element.meanDuration * element.timeData.size());
-    if(timeInstanceId != -1) {
+    ImGui::Text("Cumulative time: %0.9f s",
+                element.meanDuration * element.timeData.size());
+    if (timeInstanceId != -1) {
       ImGui::Separator();
       ImGui::Text("Hit #: %ld", timeInstanceId);
       ImGui::Text("Time: %0.9f s", element.timeData[timeInstanceId].time);
-      ImGui::Text("Duration: %0.9f s", element.timeData[timeInstanceId].duration);
+      ImGui::Text("Duration: %0.9f s",
+                  element.timeData[timeInstanceId].duration);
     }
     ImGui::Text("Profiling is in the order of 1e-7 s");
-    
+
     ImGui::EndTooltip();
   }
 }
 
 void Plotter::plotTimeEvolution() {
-
   static double lowerThreshold = 0.0;
   static bool sortByDuration = false;
   ImGui::SetNextItemWidth(200);
@@ -193,40 +194,46 @@ void Plotter::plotTimeEvolution() {
   static std::map<std::string, size_t> lastFrameSamples;
 
   ssize_t showTooltip = -1;
-  std::string tooltipElement = "";
+  std::string tooltipElement;
   ImU32 tooltipColor = 0;
 
-  float row_ratios[2] = {1.0f/10, 9.0f/10};
+  float row_ratios[2] = {1.0F / 10, 9.0F / 10};
 
-  if(ImPlot::BeginSubplots("time series", 2, 1, size, ImPlotSubplotFlags_LinkAllX | ImPlotSubplotFlags_NoTitle, row_ratios)) {
-    if(ImPlot::BeginPlot("##Measures per second")) {
+  if (ImPlot::BeginSubplots("time series", 2, 1, size,
+                            ImPlotSubplotFlags_LinkAllX |
+                                ImPlotSubplotFlags_NoTitle,
+                            row_ratios)) {
+    if (ImPlot::BeginPlot("##Measures per second")) {
       ImPlot::SetupAxis(ImAxis_X1, "##time", ImPlotAxisFlags_NoDecorations);
-      ImPlot::SetupAxis(ImAxis_Y1, "##Measures per Second", ImPlotAxisFlags_NoGridLines | ImPlotAxisFlags_AutoFit);
+      ImPlot::SetupAxis(ImAxis_Y1, "##Measures per Second",
+                        ImPlotAxisFlags_NoGridLines | ImPlotAxisFlags_AutoFit);
       double range = limits.X.Size();
-      size_t s = 0, f = 0;
-      size_t S = measurementsPerSecondAvg.size();
-      for(size_t i = 0; i < S; i += maxAllowedSamples / 2){
-        if(measurementsPerSecondAvg[i].time < limits.X.Min) {
-          s = i;
-        }
-        if(measurementsPerSecondAvg[i].time > limits.X.Max) {
-          f = i;
-          break;
-        }
+
+      size_t N = std::min(maxAllowedSamples, measurementsPerSecond.size());
+      auto start = std::lower_bound(
+          measurementsPerSecond.begin(), measurementsPerSecond.end(),
+          limits.X.Min, [](const time_value_pair_t<double> &el, double value) {
+            return el.time < value;
+          });
+      auto end = std::lower_bound(measurementsPerSecond.begin(),
+                                  measurementsPerSecond.end(), limits.X.Max,
+                                  [](const time_value_pair_t<double> &el,
+                                     double value) { return el.time < value; });
+
+      auto dist = std::distance(start, end);
+      size_t increment = dist / (2 * maxAllowedSamples);
+      if (increment == 0) {
+        increment++;
       }
-      if(s >= measurementsPerSecondAvg.size()) {
-        s = measurementsPerSecondAvg.size() - 2; 
-      }
-      if(f == 0) {
-        f = measurementsPerSecondAvg.size();
-      }
-      size_t reduction = 1;
-      size_t N = std::min(maxAllowedSamples, f - s);
-      if (maxAllowedSamples < f - s) {
-        reduction = (f - s + 1) / (1 + N * 2);
+      std::vector<time_value_pair_t<double>> means;
+      for (auto itr = start; itr < end; itr += increment) {
+        means.push_back({.time = itr->time,
+                         .value = 1.0 / (((itr + 1)->value - itr->value) / 2.0)});
       }
 
-      ImPlot::PlotScatter("Measures per second", &measurementsPerSecondAvg[s].time, &measurementsPerSecondAvg[s].value, N * 2, 0, 0, reduction * sizeof(time_value_pair_t<double>));
+      ImPlot::PlotScatter("Measures per second", &means[0].time,
+                          &means[0].value, means.size(), 0, 0,
+                          sizeof(time_value_pair_t<double>));
       ImPlot::EndPlot();
     }
 
@@ -247,7 +254,8 @@ void Plotter::plotTimeEvolution() {
             ImGui::IsKeyDown(ImGuiKey_RightCtrl)) {
           perc /= 2.0;
         }
-        const auto shiftLimits = [](float perc, const ImPlotRect &lim) -> ImVec2 {
+        const auto shiftLimits = [](float perc,
+                                    const ImPlotRect &lim) -> ImVec2 {
           float range = lim.Max().x - lim.Min().x;
           return ImVec2(lim.Min().x + perc * range, lim.Max().x + perc * range);
         };
@@ -268,21 +276,21 @@ void Plotter::plotTimeEvolution() {
       ImPlot::GetCurrentContext()->CurrentItems->ColormapIdx = 0;
       ImPlot::PushPlotClipRect();
       int row = -1;
-      for(auto &[loc, meas] : measurements) {
+      for (auto &[loc, meas] : measurements) {
         row++;
 
         int sortedRow = row;
-        if(sortByDuration) {
+        if (sortByDuration) {
           sortedRow = meas.durationSortedIndex;
         }
 
         auto col = ImPlot::NextColormapColorU32();
 
-        if (limits.Min().y > yIncrement * (row + 1)) {
+        if (limits.Min().y > yIncrement * (sortedRow + 1)) {
           continue;
         }
-        if (limits.Max().y < yIncrement * row) {
-          break;
+        if (limits.Max().y < yIncrement * sortedRow) {
+          continue;
         }
 
         size_t lastSamples = lastFrameSamples[loc];
@@ -300,7 +308,8 @@ void Plotter::plotTimeEvolution() {
             skipEvery++;
         }
 
-        size_t startIdx = 0, i = 0;
+        size_t startIdx = 0;
+        size_t i = 0;
         for (i = 0; i < meas.timeData.size();
              skipEvery >= 0 ? i++ : i += -skipEvery) {
           const auto &td = meas.timeData[i];
@@ -326,14 +335,16 @@ void Plotter::plotTimeEvolution() {
               continue;
             }
           }
-          ImVec2 rmin =
-              ImPlot::PlotToPixels(ImPlotPoint(td.time, yIncrement * sortedRow));
+          ImVec2 rmin = ImPlot::PlotToPixels(
+              ImPlotPoint(td.time, yIncrement * sortedRow));
           ImVec2 rmax = ImPlot::PlotToPixels(
               ImPlotPoint(td.time + td.duration, yIncrement * (sortedRow + 1)));
           ImPlotRect rect(rmin.x, rmax.x, rmin.y, rmax.y);
           ImPlot::GetPlotDrawList()->AddRectFilled(rmin, rmax, col);
           const auto &mousePos = ImPlot::GetPlotMousePos();
-          if (mousePos.x > td.time && mousePos.x < td.time + td.duration && mousePos.y > yIncrement * sortedRow && mousePos.y < yIncrement * (sortedRow + 1)) {
+          if (mousePos.x > td.time && mousePos.x < td.time + td.duration &&
+              mousePos.y > yIncrement * sortedRow &&
+              mousePos.y < yIncrement * (sortedRow + 1)) {
             showTooltip = i;
             tooltipElement = loc;
             tooltipColor = col;
@@ -351,15 +362,16 @@ void Plotter::plotTimeEvolution() {
       }
 
       row = 0;
-      for(auto &[loc, meas] : measurements) {
+      for (auto &[loc, meas] : measurements) {
         int sortedRow = row;
-        if(sortByDuration) {
+        if (sortByDuration) {
           sortedRow = meas.durationSortedIndex;
         }
-        std::string text =
-            meas.file + " (" + std::to_string(meas.line) + "): " + meas.function;
+        std::string text = meas.file + " (" + std::to_string(meas.line) +
+                           "): " + meas.function;
         float sizeX = ImGui::CalcTextSize(text.c_str()).x;
-        ImPlot::PlotText(text.c_str(), limits.Min().x, (sortedRow + 0.5) * (yIncrement),
+        ImPlot::PlotText(text.c_str(), limits.Min().x,
+                         (sortedRow + 0.5) * (yIncrement),
                          ImVec2(sizeX / 2.0f, 0));
         row++;
       }
@@ -369,7 +381,7 @@ void Plotter::plotTimeEvolution() {
     ImPlot::EndSubplots();
   }
 
-  if(showTooltip != -1) {
+  if (showTooltip != -1) {
     drawElementTooltip(measurements[tooltipElement], showTooltip, tooltipColor);
   }
 }
@@ -380,7 +392,7 @@ void Plotter::plotBars() {
 
   ImGui::Text("Loaded path: %s", loadedPath.c_str());
   ImGui::SameLine();
-  if(ImGui::Button("Close")){
+  if (ImGui::Button("Close")) {
     sessionCsvValid = false;
   }
   ImGui::Checkbox("Sort by duration", &sortByDuration);
@@ -394,7 +406,7 @@ void Plotter::plotBars() {
   ImGui::SameLine();
   ImGui::RadioButton("Frequency", &opts, 4);
   auto size = ImGui::GetContentRegionAvail();
-  float yIncrement = 1.0f;
+  float yIncrement = 1.0F;
   if (ImPlot::BeginPlot("session", size)) {
     std::vector<double> yPosition(measurements.size());
     std::vector<double> bar(measurements.size());
@@ -403,7 +415,7 @@ void Plotter::plotBars() {
     int row = 0;
     for (auto &[loc, meas] : measurements) {
       yPosition[row] = row;
-      if(sortByDuration){
+      if (sortByDuration) {
         yPosition[row] = meas.durationSortedIndex;
       }
       if (opts == 0) {
@@ -436,14 +448,14 @@ void Plotter::plotBars() {
     auto pltMin = ImPlot::GetPlotLimits();
     for (auto &[loc, meas] : measurements) {
       int sortedRow = row;
-      if(sortByDuration){
+      if (sortByDuration) {
         sortedRow = meas.durationSortedIndex;
       }
       std::string text =
           meas.file + " (" + std::to_string(meas.line) + "): " + meas.function;
       float sizeX = ImGui::CalcTextSize(text.c_str()).x;
       ImPlot::PlotText(text.c_str(), pltMin.Min().x, sortedRow * (yIncrement),
-                       ImVec2(sizeX / 2.0f, 0));
+                       ImVec2(sizeX / 2.0F, 0));
       row++;
     }
 

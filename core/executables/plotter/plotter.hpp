@@ -61,6 +61,5 @@ private:
   // many rows per seconds there were.
   // Drops in this values means that nothing happened in those instances
   std::vector<time_value_pair_t<double>> measurementsPerSecond;
-  std::vector<time_value_pair_t<double>> measurementsPerSecondAvg;
   std::vector<std::string> keysByDuration;
 };
