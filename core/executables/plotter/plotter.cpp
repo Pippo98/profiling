@@ -8,8 +8,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 ImFont *h1;
 ImFont *h2;
@@ -395,10 +395,10 @@ void Plotter::plotTimeEvolution() {
   static bool modalOpened = false;
   static bool modalOpenedNow = false;
 
-  if(!previewFileName.empty() && previewFileLines.empty()) {
+  if (!previewFileName.empty() && previewFileLines.empty()) {
     std::ifstream f(previewFileName, std::fstream::in);
     previewFileLines.clear();
-    if(f.is_open()){
+    if (f.is_open()) {
       std::string line;
       while (std::getline(f, line)) {
         previewFileLines.push_back(line);
@@ -412,25 +412,25 @@ void Plotter::plotTimeEvolution() {
   }
 
   if (ImGui::BeginPopupModal("File preview", &modalOpened)) {
-    for(int i = 0; i < previewFileLines.size(); i++){
+    for (int i = 0; i < previewFileLines.size(); i++) {
 
       ImGui::Text("%04d | ", i + 1);
       ImGui::SameLine();
-      if(i + 1 == previewFileLine){
+      if (i + 1 == previewFileLine) {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0, 1.0, 0.0, 1.0));
       }
 
       ImGui::TextUnformatted(previewFileLines[i].c_str());
 
-      if(i + 1 == previewFileLine){
+      if (i + 1 == previewFileLine) {
         ImGui::PopStyleColor();
-        if(modalOpenedNow) {
+        if (modalOpenedNow) {
           ImGui::SetScrollHereY();
         }
       }
     }
 
-    if(ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
       ImGui::CloseCurrentPopup();
     }
 
@@ -438,7 +438,7 @@ void Plotter::plotTimeEvolution() {
     ImGui::EndPopup();
   }
 
-  if(!modalOpened) {
+  if (!modalOpened) {
     previewFileLines.clear();
   }
 }
