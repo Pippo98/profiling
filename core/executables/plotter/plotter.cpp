@@ -111,6 +111,10 @@ void Plotter::processSessionData() {
     measurementsTimes[i] = row.time;
   }
 
+	if(measurementsTimes.empty()) {
+		return;
+	}
+
   std::sort(measurementsTimes.begin(), measurementsTimes.end());
   for (size_t i = 1; i < measurementsTimes.size() - 1; i++) {
     measurementsPerSecond[i].time = measurementsTimes[i];
