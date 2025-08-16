@@ -4,7 +4,7 @@
 
 #include "imgui.h"
 #include "app_utils/app.hpp"
-#include "core/executables/plotter/csv.hpp"
+#include "csv.hpp"
 
 extern ImFont *h1;
 extern ImFont *h2;

@@ -1,6 +1,5 @@
 #include "plotter.hpp"
-#include "core/executables/plotter/csv.hpp"
-#include "core/src/defines.hpp"
+#include "defines.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "kvp.hpp"
