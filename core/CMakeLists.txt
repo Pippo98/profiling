@@ -18,7 +18,7 @@ target_include_directories(
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
-if(BUILD_GUI)
+if(PROFILER_BUILD_GUI)
 	add_executable(plotter
 			${CDIR}/src/app_utils/implementation.cpp
 			${CDIR}/executables/plotter/plotter.cpp
@@ -36,7 +36,7 @@ if(BUILD_GUI)
 endif()
 
 
-if(BUILD_TEST)
+if(PROFILER_BUILD_TEST)
 	add_executable(test_profiler ${CDIR}/executables/test_profiler.cpp)
 	target_link_libraries(test_profiler profiler)
 endif()

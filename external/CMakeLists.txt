@@ -1,6 +1,6 @@
 set(CDIR ${CMAKE_CURRENT_LIST_DIR})
 
-if(BUILD_GUI)
+if(PROFILER_BUILD_GUI)
 
 FILE(GLOB imgui_srcs ${CDIR}/imgui/*)
 FILE(GLOB implot_srcs ${CDIR}/implot/*)
