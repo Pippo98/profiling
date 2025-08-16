@@ -36,6 +36,7 @@ void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start
   };
   std::scoped_lock lck(mtx);
   fwrite(&serializer, sizeof(serializer), 1, session.get());
+	fflush(session.get());
 }
 ProfilingSession &ProfilingSession::getGlobalInstace() noexcept {
   static ProfilingSession session;
