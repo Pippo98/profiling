@@ -98,11 +98,11 @@ void Plotter::Draw() {
     }
     ImGui::End();
   } else {
-    if (ImGui::Begin("Session")) {
+    if (ImGui::Begin("Timeline")) {
       plotTimeEvolution();
     }
     ImGui::End();
-    if (ImGui::Begin("Bars")) {
+    if (ImGui::Begin("Statistics")) {
       plotBars();
     }
     ImGui::End();
@@ -536,8 +536,10 @@ void Plotter::plotBars() {
   ImGui::Text("Plot options:");
   ImGui::SameLine();
   ImGui::SetNextItemWidth(200);
-  ImGui::Combo("##Plot options", &opts,
-               "Mean\0Cumulative\0Percentage\0Counts\0Frequency\0");
+  const char *plotOptions[] = {
+      "Mean",   "Cumulative", "Percentage of total time",
+      "Counts", "Frequency"};
+  ImGui::Combo("##Plot options", &opts, plotOptions, IM_ARRAYSIZE(plotOptions));
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0F;
@@ -571,9 +573,9 @@ void Plotter::plotBars() {
       row++;
     }
 
-    ImPlot::PlotBars(opts == 0 ? "Mean" : "Cumulative", bar.data(),
-                     yPosition.data(), bar.size(), yIncrement / 2.0,
-                     ImPlotBarsFlags_Horizontal);
+    const char *name = plotOptions[opts];
+    ImPlot::PlotBars(name, bar.data(), yPosition.data(), bar.size(),
+                     yIncrement / 2.0, ImPlotBarsFlags_Horizontal);
     if (opts == 0) {
       ImPlot::PlotErrorBars("Standard deviation", bar.data(), yPosition.data(),
                             std.data(), bar.size(),
@@ -619,20 +621,20 @@ void Plotter::drawExportModal() {
     std::string exportFileName = prefix + "_session.csv";
     std::string exportStatsFileName = prefix + "_stats.csv";
     ImGui::Text("Files will be called: %s and %s and will be saved in %s",
-								exportFileName.c_str(), exportStatsFileName.c_str(),
-								loadedPath.c_str());
+                exportFileName.c_str(), exportStatsFileName.c_str(),
+                loadedPath.c_str());
 
     if (ImGui::Button("Export")) {
       if (!exportFileName.empty()) {
         std::ofstream out(loadedPath + "/" + exportFileName, std::ios::out);
         if (out.is_open()) {
           // export session data
-          out << "Time;Duration;Path;Line;Function;Name\n";
+          out << "time;duration;path;line;function;name\n";
           for (const auto &row : sessionData) {
             out << row.time << ";" << row.duration << ";" << row.path << ";"
                 << row.line << ";" << row.function << ";" << row.name << "\n";
           }
-					out.close();
+          out.close();
         } else {
           std::cerr << "Error: Could not open file for writing!" << std::endl;
         }
@@ -640,28 +642,28 @@ void Plotter::drawExportModal() {
         std::cerr << "Error: Export file name cannot be empty!" << std::endl;
       }
 
-			if (!exportStatsFileName.empty()) {
-				std::ofstream out(loadedPath + "/" + exportStatsFileName,
-													std::ios::out);
-				if (out.is_open()) {
-					// export stats
-					out << "Name;Function;File;Line;Mean Duration;Standard Deviation;"
-								 "Mean Frequency;Hits\n";
-					for (const auto &[loc, meas] : measurements) {
-						out << meas.name << ";" << meas.function << ";" << meas.file << ";"
-								<< meas.line << ";" << meas.meanDuration << ";"
-								<< meas.standardDeviation << ";" << meas.meanFrequency << ";"
-								<< meas.timeData.size() << "\n";
-					}
-					out.close();
-				} else {
-					std::cerr << "Error: Could not open stats file for writing!"
-										<< std::endl;
-				}
-			} else {
-				std::cerr << "Error: Export stats file name cannot be empty!"
-									<< std::endl;
-			}
+      if (!exportStatsFileName.empty()) {
+        std::ofstream out(loadedPath + "/" + exportStatsFileName,
+                          std::ios::out);
+        if (out.is_open()) {
+          // export stats
+          out << "name;function;file;line;mean duration;standard deviation;"
+                 "mean frequency;hits\n";
+          for (const auto &[loc, meas] : measurements) {
+            out << meas.name << ";" << meas.function << ";" << meas.file << ";"
+                << meas.line << ";" << meas.meanDuration << ";"
+                << meas.standardDeviation << ";" << meas.meanFrequency << ";"
+                << meas.timeData.size() << "\n";
+          }
+          out.close();
+        } else {
+          std::cerr << "Error: Could not open stats file for writing!"
+                    << std::endl;
+        }
+      } else {
+        std::cerr << "Error: Export stats file name cannot be empty!"
+                  << std::endl;
+      }
 
       ImGui::CloseCurrentPopup();
     }
