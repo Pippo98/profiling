@@ -28,6 +28,7 @@ if(PROFILER_BUILD_GUI)
 	target_link_libraries(plotter
 		PUBLIC
 		imgui
+		tinyfiledialogs
 	)
 	target_include_directories(plotter
 		PRIVATE

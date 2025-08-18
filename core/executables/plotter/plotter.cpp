@@ -4,6 +4,9 @@
 #include "implot.h"
 #include "kvp.hpp"
 #include "utils/style.hpp"
+extern "C" {
+#include "tinyfiledialogs.h"
+}
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
@@ -76,6 +79,13 @@ void Plotter::Draw() {
   }
 
   if (loading) {
+		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
+		if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+			ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 200,
+			                               ImGui::GetIO().DisplaySize.y / 2.0f - 50),
+			                        ImGuiCond_Always);
+		}
+
     ImGui::Begin("Loading");
     ImGui::Text("Loading session data from %s", loadedPath.c_str());
     if (!sessionCsvValid) {
@@ -89,19 +99,44 @@ void Plotter::Draw() {
   }
 
   if (!sessionCsvValid) {
+		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiCond_Once);
+		if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+			ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 300,
+			                               ImGui::GetIO().DisplaySize.y / 2.0f - 200),
+			                        ImGuiCond_Always);
+		}
     ImGui::Begin("Open");
     std::string &path = KVP::getMutable("base path");
-    ImGui::InputText("Base path", &path);
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("Path to session data:");
+    ImGui::SameLine();
+    ImGui::InputText("##base_path", &path);
+    ImGui::SameLine();
+    if (ImGui::Button("Browse")) {
+      const char *file =
+          tinyfd_selectFolderDialog("Select base path", path.c_str());
+      if (file) {
+        path = file;
+        path += "/";
+      }
+    }
     if (ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
       loadedPath = path;
       shouldStartLoading = true;
     }
     ImGui::End();
   } else {
+		if(!ImGui::GetCurrentContext()->SettingsLoaded) {
+			ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
+		}
     if (ImGui::Begin("Timeline")) {
       plotTimeEvolution();
     }
     ImGui::End();
+
+		if(!ImGui::GetCurrentContext()->SettingsLoaded) {
+			ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_Once);
+		}
     if (ImGui::Begin("Statistics")) {
       plotBars();
     }
@@ -520,25 +555,27 @@ void Plotter::plotBars() {
   static int opts = 0;
 
   ImGui::Text("Loaded path: %s", loadedPath.c_str());
-  ImGui::SameLine();
-  if (ImGui::Button("Close")) {
+
+  if (ImGui::Button("Close session")) {
     sessionCsvValid = false;
   }
+	ImGui::SameLine();
   if (ImGui::Button("Reload")) {
     shouldStartLoading = true;
   }
+	ImGui::SameLine();
   if (ImGui::Button("Export")) {
     exportModalOpen = true;
   }
+	ImGui::Separator();
 
   drawSortSelector();
   ImGui::SameLine();
   ImGui::Text("Plot options:");
   ImGui::SameLine();
   ImGui::SetNextItemWidth(200);
-  const char *plotOptions[] = {
-      "Mean",   "Cumulative", "Percentage of total time",
-      "Counts", "Frequency"};
+  const char *plotOptions[] = {"Mean", "Cumulative", "Percentage of total time",
+                               "Counts", "Frequency"};
   ImGui::Combo("##Plot options", &opts, plotOptions, IM_ARRAYSIZE(plotOptions));
 
   auto size = ImGui::GetContentRegionAvail();
@@ -604,6 +641,7 @@ void Plotter::plotBars() {
 }
 
 void Plotter::drawSortSelector() {
+  ImGui::AlignTextToFramePadding();
   ImGui::Text("Sort by:");
   ImGui::SameLine();
   ImGui::SetNextItemWidth(200);
@@ -624,11 +662,16 @@ void Plotter::drawExportModal() {
                 exportFileName.c_str(), exportStatsFileName.c_str(),
                 loadedPath.c_str());
 
+    static bool exportStats = true;
+    static bool exportSession = true;
+    ImGui::Checkbox("Export session data", &exportSession);
+    ImGui::SameLine();
+    ImGui::Checkbox("Export stats", &exportStats);
+
     if (ImGui::Button("Export")) {
-      if (!exportFileName.empty()) {
+      if (exportSession && !exportFileName.empty()) {
         std::ofstream out(loadedPath + "/" + exportFileName, std::ios::out);
         if (out.is_open()) {
-          // export session data
           out << "time;duration;path;line;function;name\n";
           for (const auto &row : sessionData) {
             out << row.time << ";" << row.duration << ";" << row.path << ";"
@@ -639,14 +682,15 @@ void Plotter::drawExportModal() {
           std::cerr << "Error: Could not open file for writing!" << std::endl;
         }
       } else {
-        std::cerr << "Error: Export file name cannot be empty!" << std::endl;
+        if (exportFileName.empty()) {
+          std::cerr << "Error: Export file name cannot be empty!" << std::endl;
+        }
       }
 
-      if (!exportStatsFileName.empty()) {
+      if (exportStats && !exportStatsFileName.empty()) {
         std::ofstream out(loadedPath + "/" + exportStatsFileName,
                           std::ios::out);
         if (out.is_open()) {
-          // export stats
           out << "name;function;file;line;mean duration;standard deviation;"
                  "mean frequency;hits\n";
           for (const auto &[loc, meas] : measurements) {
@@ -657,8 +701,10 @@ void Plotter::drawExportModal() {
           }
           out.close();
         } else {
-          std::cerr << "Error: Could not open stats file for writing!"
-                    << std::endl;
+          if (exportStatsFileName.empty()) {
+            std::cerr << "Error: Could not open stats file for writing!"
+                      << std::endl;
+          }
         }
       } else {
         std::cerr << "Error: Export stats file name cannot be empty!"
