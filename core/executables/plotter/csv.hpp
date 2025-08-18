@@ -14,6 +14,7 @@ struct session_row_t {
   std::string path;
   int line;
   std::string function;
+  std::string name;
 };
 
 bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data);

@@ -90,6 +90,7 @@ std::string extractFileAndLine(const std::string &input) {
 void Plotter::processSessionData() {
   measurements.clear();
   keysByDuration.clear();
+	keysByAppearance.clear();
   measurementsPerSecond.resize(sessionData.size());
   std::vector<double> measurementsTimes(sessionData.size());
   for (size_t i = 0; i < sessionData.size(); i++) {
@@ -101,6 +102,7 @@ void Plotter::processSessionData() {
     meas.line = row.line;
     meas.path = row.path;
     meas.file = std::filesystem::path(row.path).filename();
+    meas.name = row.name;
     meas.timeData.push_back({row.time, row.duration});
     if (meas.startAndDuration.time == -1) {
       meas.startAndDuration.time = row.time;
@@ -111,9 +113,9 @@ void Plotter::processSessionData() {
     measurementsTimes[i] = row.time;
   }
 
-	if(measurementsTimes.empty()) {
-		return;
-	}
+  if (measurementsTimes.empty()) {
+    return;
+  }
 
   std::sort(measurementsTimes.begin(), measurementsTimes.end());
   for (size_t i = 1; i < measurementsTimes.size() - 1; i++) {
@@ -137,6 +139,7 @@ void Plotter::processSessionData() {
               << meas.standardDeviation << std::endl;
     keysByDuration.push_back(loc);
   }
+	keysByAppearance = keysByDuration;
   std::sort(keysByDuration.begin(), keysByDuration.end(),
             [&](const auto &a, const auto &b) {
               const auto &elA = measurements[a];
@@ -144,9 +147,18 @@ void Plotter::processSessionData() {
               return elA.meanDuration * elA.timeData.size() >
                      elB.meanDuration * elB.timeData.size();
             });
+	std::sort(keysByAppearance.begin(), keysByAppearance.end(),
+						[&](const std::string &a, const std::string &b) {
+							const measurement_element_t &elA = measurements[a];
+							const measurement_element_t &elB = measurements[b];
+							return elA.startAndDuration.time < elB.startAndDuration.time;
+						});
   for (size_t i = 0; i < keysByDuration.size(); i++) {
     measurements[keysByDuration[i]].durationSortedIndex = i;
   }
+	for (size_t i = 0; i < keysByAppearance.size(); i++) {
+		measurements[keysByAppearance[i]].appearanceSortedIndex = i;
+	}
 }
 
 void drawElementTooltip(const measurement_element_t &element,
@@ -158,6 +170,10 @@ void drawElementTooltip(const measurement_element_t &element,
   if (ImGui::BeginItemTooltip()) {
     ImGui::Text("Press Enter to open file preview");
     ImGui::Separator();
+    ImGui::Text("Name:");
+    ImGui::SameLine();
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s",
+                       element.name.c_str());
     ImGui::Text("Function:");
     ImGui::SameLine();
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s",
@@ -183,13 +199,16 @@ void drawElementTooltip(const measurement_element_t &element,
   }
 }
 
+void Plotter::drawSortSelector() {
+	ImGui::Combo("Sort by", &sortBy, "No sort\0By duration\0By appearance\0");
+}
+
 void Plotter::plotTimeEvolution() {
   static double lowerThreshold = 0.0;
-  static bool sortByDuration = false;
   ImGui::SetNextItemWidth(200);
   ImGui::InputDouble("Skip samples with duration less than", &lowerThreshold);
   ImGui::SameLine();
-  ImGui::Checkbox("Sort by duration", &sortByDuration);
+	drawSortSelector();
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
@@ -285,9 +304,11 @@ void Plotter::plotTimeEvolution() {
         row++;
 
         int sortedRow = row;
-        if (sortByDuration) {
-          sortedRow = meas.durationSortedIndex;
-        }
+				if(sortBy == (int)SortBy::Duration) {
+					sortedRow = meas.durationSortedIndex;
+				} else if (sortBy == (int)SortBy::Appearance) {
+					sortedRow = meas.appearanceSortedIndex;
+				}
 
         auto col = ImPlot::NextColormapColorU32();
 
@@ -374,11 +395,13 @@ void Plotter::plotTimeEvolution() {
       row = 0;
       for (auto &[loc, meas] : measurements) {
         int sortedRow = row;
-        if (sortByDuration) {
-          sortedRow = meas.durationSortedIndex;
-        }
-        std::string text = meas.file + " (" + std::to_string(meas.line) +
-                           "): " + meas.function;
+				if(sortBy == (int)SortBy::Duration) {
+					sortedRow = meas.durationSortedIndex;
+				} else if (sortBy == (int)SortBy::Appearance) {
+					sortedRow = meas.appearanceSortedIndex;
+				}
+        std::string text = meas.name + "\n" + meas.file + ":" +
+                           std::to_string(meas.line) + "\n" + meas.function;
         float sizeX = ImGui::CalcTextSize(text.c_str()).x;
         ImPlot::PlotText(text.c_str(), limits.Min().x,
                          (sortedRow + 0.5) * (yIncrement),
@@ -448,14 +471,14 @@ void Plotter::plotTimeEvolution() {
 
 void Plotter::plotBars() {
   static int opts = 0;
-  static bool sortByDuration = false;
 
   ImGui::Text("Loaded path: %s", loadedPath.c_str());
   ImGui::SameLine();
   if (ImGui::Button("Close")) {
     sessionCsvValid = false;
   }
-  ImGui::Checkbox("Sort by duration", &sortByDuration);
+  ImGui::SameLine();
+	drawSortSelector();
   ImGui::RadioButton("Mean", &opts, 0);
   ImGui::SameLine();
   ImGui::RadioButton("Cumulative", &opts, 1);
@@ -475,9 +498,11 @@ void Plotter::plotBars() {
     int row = 0;
     for (auto &[loc, meas] : measurements) {
       yPosition[row] = row;
-      if (sortByDuration) {
-        yPosition[row] = meas.durationSortedIndex;
-      }
+			if(sortBy == (int)SortBy::Duration) {
+				yPosition[row] = meas.durationSortedIndex;
+			} else if (sortBy == (int)SortBy::Appearance) {
+				yPosition[row] = meas.appearanceSortedIndex;
+			}
       if (opts == 0) {
         bar[row] = meas.meanDuration;
         std[row] = meas.standardDeviation;
@@ -508,11 +533,13 @@ void Plotter::plotBars() {
     auto pltMin = ImPlot::GetPlotLimits();
     for (auto &[loc, meas] : measurements) {
       int sortedRow = row;
-      if (sortByDuration) {
+      if (sortBy == (int)SortBy::Duration) {
         sortedRow = meas.durationSortedIndex;
-      }
-      std::string text =
-          meas.file + " (" + std::to_string(meas.line) + "): " + meas.function;
+      } else if (sortBy == (int)SortBy::Appearance) {
+				sortedRow = meas.appearanceSortedIndex;
+			}
+      std::string text = meas.name + "\n" + meas.file + ":" +
+                         std::to_string(meas.line) + "\n" + meas.function;
       float sizeX = ImGui::CalcTextSize(text.c_str()).x;
       ImPlot::PlotText(text.c_str(), pltMin.Min().x, sortedRow * (yIncrement),
                        ImVec2(sizeX / 2.0F, 0));

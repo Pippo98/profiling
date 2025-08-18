@@ -23,6 +23,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     std::string path;
     int line;
     std::string function;
+		std::string name;
   };
   std::map<uint64_t, id_map> locationIDMap;
 
@@ -35,6 +36,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     std::getline(ss, el.path, ';');
     std::getline(ss, lineStr, ';');
     std::getline(ss, el.function, ';');
+    std::getline(ss, el.name, ';');
     std::getline(ss, idStr);
 
     try {
@@ -54,6 +56,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     row.path = locationIDMap[ser.location_id].path;
     row.line = locationIDMap[ser.location_id].line;
     row.function = locationIDMap[ser.location_id].function;
+		row.name = locationIDMap[ser.location_id].name;
     row.time = ser.time;
     row.duration = ser.duration;
 

@@ -19,6 +19,7 @@ long getDuration(time_point start) {
 
 int main(void) {
   ProfilingSession::getGlobalInstace().initialize(PROJECT_PATH);
+	ProfilingSession::getGlobalInstace().enable();
 
   constexpr int iterations = 8000;
 
@@ -30,7 +31,7 @@ int main(void) {
   for (int i = 0; i < iterations; i++) {
     start = std::chrono::steady_clock::now();
     {
-      static LocationID locId;
+      static LocationID locId("loop");
       MeasureScope scope(locId);
       t0 = std::chrono::steady_clock::now();
       for (int j = 0; j < 10000; j++) {

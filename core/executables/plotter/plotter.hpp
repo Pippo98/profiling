@@ -11,6 +11,12 @@ extern ImFont *h2;
 extern ImFont *h3;
 extern ImFont *text;
 
+enum class SortBy {
+	None,
+	Duration,
+	Appearance,
+};
+
 template<typename ValueType>
 struct time_value_pair_t{
   double time;
@@ -32,8 +38,10 @@ struct measurement_element_t {
   std::string file;
   uint64_t line;
   std::string function;
+  std::string name;
 
   size_t durationSortedIndex;
+  size_t appearanceSortedIndex;
 };
 inline std::string getLocation(const measurement_element_t &el) {
   return el.path + "(" + std::to_string(el.line) + "): " + el.function;
@@ -51,6 +59,8 @@ private:
   void plotTimeEvolution();
   void plotBars();
 
+	void drawSortSelector();
+
   bool sessionCsvValid = false;
   std::vector<session_row_t> sessionData;
   std::map<std::string, measurement_element_t> measurements;
@@ -66,4 +76,7 @@ private:
   // Drops in this values means that nothing happened in those instances
   std::vector<time_value_pair_t<double>> measurementsPerSecond;
   std::vector<std::string> keysByDuration;
+  std::vector<std::string> keysByAppearance;
+
+	int sortBy = (int)SortBy::None;
 };
