@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <atomic>
 
 struct __attribute__((packed)) session_row_binary_t {
   double time;
@@ -17,4 +18,4 @@ struct session_row_t {
   std::string name;
 };
 
-bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data);
+bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data, std::atomic<float> &progress);

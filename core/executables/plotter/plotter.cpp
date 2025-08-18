@@ -45,15 +45,56 @@ int main(int argc, char **argv) {
   return EXIT_SUCCESS;
 }
 
+Plotter::~Plotter() {
+	if(loadingThread && loadingThread->joinable()) {
+		loadingThread->join();
+	}
+}
+
+void Plotter::startLoading() {
+	shouldStartLoading = false;
+	if(loading) {
+		return;
+	}
+
+	sessionCsvValid = false;
+
+	if(loadingThread && loadingThread->joinable()) {
+		loadingThread->join();
+	}
+	loadingThread = std::make_unique<std::thread>([&]() {
+		sessionCsvValid = ReadSessionCSV(loadedPath, sessionData, progress);
+		processSessionData();
+		loading = false;
+	});
+	loading = true;
+}
+
 void Plotter::Draw() {
+	if(shouldStartLoading) {
+		startLoading();
+	}
+
+	if(loading) {
+		ImGui::Begin("Loading");
+		ImGui::Text("Loading session data from %s", loadedPath.c_str());
+		if(!sessionCsvValid) {
+			ImGui::Text("Loading CSV file...");
+		} else {
+			ImGui::Text("Processing data...");
+		}
+		ImGui::ProgressBar(progress.load(), ImVec2(0.0f, 0.0f));
+		ImGui::End();
+		return;
+	}
+
   if (!sessionCsvValid) {
     ImGui::Begin("Open");
     std::string &path = KVP::getMutable("base path");
     ImGui::InputText("Base path", &path);
     if (ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-      sessionCsvValid = ReadSessionCSV(path, sessionData);
       loadedPath = path;
-      processSessionData();
+			shouldStartLoading = true;
     }
     ImGui::End();
   } else {
@@ -111,6 +152,8 @@ void Plotter::processSessionData() {
     meas.startAndDuration.duration = row.time + row.duration;
 
     measurementsTimes[i] = row.time;
+
+		progress = (double)i / sessionData.size();
   }
 
   if (measurementsTimes.empty()) {
@@ -199,16 +242,14 @@ void drawElementTooltip(const measurement_element_t &element,
   }
 }
 
-void Plotter::drawSortSelector() {
-	ImGui::Combo("Sort by", &sortBy, "No sort\0By duration\0By appearance\0");
-}
-
 void Plotter::plotTimeEvolution() {
   static double lowerThreshold = 0.0;
   ImGui::SetNextItemWidth(200);
-  ImGui::InputDouble("Skip samples with duration less than", &lowerThreshold);
-  ImGui::SameLine();
 	drawSortSelector();
+  ImGui::SameLine();
+	ImGui::Text("Skip samples with duration less than: ");
+	ImGui::SameLine();
+  ImGui::InputDouble("##skip_samples_every", &lowerThreshold);
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
@@ -477,17 +518,17 @@ void Plotter::plotBars() {
   if (ImGui::Button("Close")) {
     sessionCsvValid = false;
   }
-  ImGui::SameLine();
+	if (ImGui::Button("Reload")) {
+		shouldStartLoading = true;
+	}
+	
 	drawSortSelector();
-  ImGui::RadioButton("Mean", &opts, 0);
   ImGui::SameLine();
-  ImGui::RadioButton("Cumulative", &opts, 1);
+	ImGui::Text("Plot options:");
   ImGui::SameLine();
-  ImGui::RadioButton("Percentage", &opts, 2);
-  ImGui::SameLine();
-  ImGui::RadioButton("Counts", &opts, 3);
-  ImGui::SameLine();
-  ImGui::RadioButton("Frequency", &opts, 4);
+	ImGui::SetNextItemWidth(200);
+	ImGui::Combo("##Plot options", &opts, "Mean\0Cumulative\0Percentage\0Counts\0Frequency\0");
+
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0F;
   if (ImPlot::BeginPlot("session", size)) {
@@ -548,4 +589,11 @@ void Plotter::plotBars() {
 
     ImPlot::EndPlot();
   }
+}
+
+void Plotter::drawSortSelector() {
+	ImGui::Text("Sort by:");
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(200);
+	ImGui::Combo("##Sort by", &sortBy, "No sort\0By duration\0By appearance\0");
 }

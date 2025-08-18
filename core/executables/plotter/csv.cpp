@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
+bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data, std::atomic<float> &progress) {
   std::ifstream locationIDMapFile(path + SESSION_ID_MAP_FILENAME,
                                   std::fstream::in);
   if (!locationIDMapFile.is_open()) {
@@ -47,6 +47,12 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
       std::cerr << "Error: Invalid data format in the CSV file!" << std::endl;
     }
   }
+	locationIDMapFile.close();
+
+	size_t csvSize = 0;
+	fseek(csv, 0, SEEK_END);
+	csvSize = ftell(csv);
+	fseek(csv, 0, SEEK_SET);
 
   session_row_binary_t ser;
   data.clear();
@@ -61,6 +67,8 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data) {
     row.duration = ser.duration;
 
     data.push_back(row);
+		progress = (float)data.size() * sizeof(ser) / csvSize;
   }
+	fclose(csv);
   return true;
 }

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <atomic>
 #include <map>
+#include <thread>
 
 #include "imgui.h"
 #include "app_utils/app.hpp"
@@ -51,6 +53,8 @@ inline std::string getLocation(const session_row_t &el) {
 }
 
 class Plotter : public App {
+public:
+	~Plotter();
 protected:
   virtual void Draw();
 
@@ -59,8 +63,12 @@ private:
   void plotTimeEvolution();
   void plotBars();
 
+	void startLoading();
+
 	void drawSortSelector();
 
+	bool loading = false;
+	bool shouldStartLoading = false;
   bool sessionCsvValid = false;
   std::vector<session_row_t> sessionData;
   std::map<std::string, measurement_element_t> measurements;
@@ -70,6 +78,9 @@ private:
   int previewFileLine;
   std::string previewFileName;
   std::vector<std::string> previewFileLines;
+
+	std::atomic<float> progress = 0.0f;
+	std::unique_ptr<std::thread> loadingThread;
 
   // list of measuresPerSeconds along the full log. measures how 
   // many rows per seconds there were.
