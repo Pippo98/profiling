@@ -59,17 +59,20 @@ protected:
   virtual void Draw();
 
 private:
+	void startLoading();
   void processSessionData();
+
   void plotTimeEvolution();
   void plotBars();
-
-	void startLoading();
+	void drawExportModal();
 
 	void drawSortSelector();
 
 	bool loading = false;
 	bool shouldStartLoading = false;
   bool sessionCsvValid = false;
+	bool exportModalOpen = false;
+
   std::vector<session_row_t> sessionData;
   std::map<std::string, measurement_element_t> measurements;
   double endTime;

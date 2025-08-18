@@ -46,47 +46,47 @@ int main(int argc, char **argv) {
 }
 
 Plotter::~Plotter() {
-	if(loadingThread && loadingThread->joinable()) {
-		loadingThread->join();
-	}
+  if (loadingThread && loadingThread->joinable()) {
+    loadingThread->join();
+  }
 }
 
 void Plotter::startLoading() {
-	shouldStartLoading = false;
-	if(loading) {
-		return;
-	}
+  shouldStartLoading = false;
+  if (loading) {
+    return;
+  }
 
-	sessionCsvValid = false;
+  sessionCsvValid = false;
 
-	if(loadingThread && loadingThread->joinable()) {
-		loadingThread->join();
-	}
-	loadingThread = std::make_unique<std::thread>([&]() {
-		sessionCsvValid = ReadSessionCSV(loadedPath, sessionData, progress);
-		processSessionData();
-		loading = false;
-	});
-	loading = true;
+  if (loadingThread && loadingThread->joinable()) {
+    loadingThread->join();
+  }
+  loadingThread = std::make_unique<std::thread>([&]() {
+    sessionCsvValid = ReadSessionCSV(loadedPath, sessionData, progress);
+    processSessionData();
+    loading = false;
+  });
+  loading = true;
 }
 
 void Plotter::Draw() {
-	if(shouldStartLoading) {
-		startLoading();
-	}
+  if (shouldStartLoading) {
+    startLoading();
+  }
 
-	if(loading) {
-		ImGui::Begin("Loading");
-		ImGui::Text("Loading session data from %s", loadedPath.c_str());
-		if(!sessionCsvValid) {
-			ImGui::Text("Loading CSV file...");
-		} else {
-			ImGui::Text("Processing data...");
-		}
-		ImGui::ProgressBar(progress.load(), ImVec2(0.0f, 0.0f));
-		ImGui::End();
-		return;
-	}
+  if (loading) {
+    ImGui::Begin("Loading");
+    ImGui::Text("Loading session data from %s", loadedPath.c_str());
+    if (!sessionCsvValid) {
+      ImGui::Text("Loading CSV file...");
+    } else {
+      ImGui::Text("Processing data...");
+    }
+    ImGui::ProgressBar(progress.load(), ImVec2(0.0f, 0.0f));
+    ImGui::End();
+    return;
+  }
 
   if (!sessionCsvValid) {
     ImGui::Begin("Open");
@@ -94,7 +94,7 @@ void Plotter::Draw() {
     ImGui::InputText("Base path", &path);
     if (ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
       loadedPath = path;
-			shouldStartLoading = true;
+      shouldStartLoading = true;
     }
     ImGui::End();
   } else {
@@ -107,6 +107,12 @@ void Plotter::Draw() {
     }
     ImGui::End();
   }
+
+  if (exportModalOpen) {
+    ImGui::OpenPopup("Export options");
+    exportModalOpen = false;
+  }
+  drawExportModal();
 }
 
 std::string extractFunctionName(const std::string &input) {
@@ -131,7 +137,7 @@ std::string extractFileAndLine(const std::string &input) {
 void Plotter::processSessionData() {
   measurements.clear();
   keysByDuration.clear();
-	keysByAppearance.clear();
+  keysByAppearance.clear();
   measurementsPerSecond.resize(sessionData.size());
   std::vector<double> measurementsTimes(sessionData.size());
   for (size_t i = 0; i < sessionData.size(); i++) {
@@ -153,7 +159,7 @@ void Plotter::processSessionData() {
 
     measurementsTimes[i] = row.time;
 
-		progress = (double)i / sessionData.size();
+    progress = (double)i / sessionData.size();
   }
 
   if (measurementsTimes.empty()) {
@@ -182,7 +188,7 @@ void Plotter::processSessionData() {
               << meas.standardDeviation << std::endl;
     keysByDuration.push_back(loc);
   }
-	keysByAppearance = keysByDuration;
+  keysByAppearance = keysByDuration;
   std::sort(keysByDuration.begin(), keysByDuration.end(),
             [&](const auto &a, const auto &b) {
               const auto &elA = measurements[a];
@@ -190,18 +196,18 @@ void Plotter::processSessionData() {
               return elA.meanDuration * elA.timeData.size() >
                      elB.meanDuration * elB.timeData.size();
             });
-	std::sort(keysByAppearance.begin(), keysByAppearance.end(),
-						[&](const std::string &a, const std::string &b) {
-							const measurement_element_t &elA = measurements[a];
-							const measurement_element_t &elB = measurements[b];
-							return elA.startAndDuration.time < elB.startAndDuration.time;
-						});
+  std::sort(keysByAppearance.begin(), keysByAppearance.end(),
+            [&](const std::string &a, const std::string &b) {
+              const measurement_element_t &elA = measurements[a];
+              const measurement_element_t &elB = measurements[b];
+              return elA.startAndDuration.time < elB.startAndDuration.time;
+            });
   for (size_t i = 0; i < keysByDuration.size(); i++) {
     measurements[keysByDuration[i]].durationSortedIndex = i;
   }
-	for (size_t i = 0; i < keysByAppearance.size(); i++) {
-		measurements[keysByAppearance[i]].appearanceSortedIndex = i;
-	}
+  for (size_t i = 0; i < keysByAppearance.size(); i++) {
+    measurements[keysByAppearance[i]].appearanceSortedIndex = i;
+  }
 }
 
 void drawElementTooltip(const measurement_element_t &element,
@@ -245,10 +251,10 @@ void drawElementTooltip(const measurement_element_t &element,
 void Plotter::plotTimeEvolution() {
   static double lowerThreshold = 0.0;
   ImGui::SetNextItemWidth(200);
-	drawSortSelector();
+  drawSortSelector();
   ImGui::SameLine();
-	ImGui::Text("Skip samples with duration less than: ");
-	ImGui::SameLine();
+  ImGui::Text("Skip samples with duration less than: ");
+  ImGui::SameLine();
   ImGui::InputDouble("##skip_samples_every", &lowerThreshold);
 
   auto size = ImGui::GetContentRegionAvail();
@@ -345,11 +351,11 @@ void Plotter::plotTimeEvolution() {
         row++;
 
         int sortedRow = row;
-				if(sortBy == (int)SortBy::Duration) {
-					sortedRow = meas.durationSortedIndex;
-				} else if (sortBy == (int)SortBy::Appearance) {
-					sortedRow = meas.appearanceSortedIndex;
-				}
+        if (sortBy == (int)SortBy::Duration) {
+          sortedRow = meas.durationSortedIndex;
+        } else if (sortBy == (int)SortBy::Appearance) {
+          sortedRow = meas.appearanceSortedIndex;
+        }
 
         auto col = ImPlot::NextColormapColorU32();
 
@@ -436,11 +442,11 @@ void Plotter::plotTimeEvolution() {
       row = 0;
       for (auto &[loc, meas] : measurements) {
         int sortedRow = row;
-				if(sortBy == (int)SortBy::Duration) {
-					sortedRow = meas.durationSortedIndex;
-				} else if (sortBy == (int)SortBy::Appearance) {
-					sortedRow = meas.appearanceSortedIndex;
-				}
+        if (sortBy == (int)SortBy::Duration) {
+          sortedRow = meas.durationSortedIndex;
+        } else if (sortBy == (int)SortBy::Appearance) {
+          sortedRow = meas.appearanceSortedIndex;
+        }
         std::string text = meas.name + "\n" + meas.file + ":" +
                            std::to_string(meas.line) + "\n" + meas.function;
         float sizeX = ImGui::CalcTextSize(text.c_str()).x;
@@ -518,16 +524,20 @@ void Plotter::plotBars() {
   if (ImGui::Button("Close")) {
     sessionCsvValid = false;
   }
-	if (ImGui::Button("Reload")) {
-		shouldStartLoading = true;
-	}
-	
-	drawSortSelector();
+  if (ImGui::Button("Reload")) {
+    shouldStartLoading = true;
+  }
+  if (ImGui::Button("Export")) {
+    exportModalOpen = true;
+  }
+
+  drawSortSelector();
   ImGui::SameLine();
-	ImGui::Text("Plot options:");
+  ImGui::Text("Plot options:");
   ImGui::SameLine();
-	ImGui::SetNextItemWidth(200);
-	ImGui::Combo("##Plot options", &opts, "Mean\0Cumulative\0Percentage\0Counts\0Frequency\0");
+  ImGui::SetNextItemWidth(200);
+  ImGui::Combo("##Plot options", &opts,
+               "Mean\0Cumulative\0Percentage\0Counts\0Frequency\0");
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0F;
@@ -539,11 +549,11 @@ void Plotter::plotBars() {
     int row = 0;
     for (auto &[loc, meas] : measurements) {
       yPosition[row] = row;
-			if(sortBy == (int)SortBy::Duration) {
-				yPosition[row] = meas.durationSortedIndex;
-			} else if (sortBy == (int)SortBy::Appearance) {
-				yPosition[row] = meas.appearanceSortedIndex;
-			}
+      if (sortBy == (int)SortBy::Duration) {
+        yPosition[row] = meas.durationSortedIndex;
+      } else if (sortBy == (int)SortBy::Appearance) {
+        yPosition[row] = meas.appearanceSortedIndex;
+      }
       if (opts == 0) {
         bar[row] = meas.meanDuration;
         std[row] = meas.standardDeviation;
@@ -577,8 +587,8 @@ void Plotter::plotBars() {
       if (sortBy == (int)SortBy::Duration) {
         sortedRow = meas.durationSortedIndex;
       } else if (sortBy == (int)SortBy::Appearance) {
-				sortedRow = meas.appearanceSortedIndex;
-			}
+        sortedRow = meas.appearanceSortedIndex;
+      }
       std::string text = meas.name + "\n" + meas.file + ":" +
                          std::to_string(meas.line) + "\n" + meas.function;
       float sizeX = ImGui::CalcTextSize(text.c_str()).x;
@@ -592,8 +602,73 @@ void Plotter::plotBars() {
 }
 
 void Plotter::drawSortSelector() {
-	ImGui::Text("Sort by:");
-	ImGui::SameLine();
-	ImGui::SetNextItemWidth(200);
-	ImGui::Combo("##Sort by", &sortBy, "No sort\0By duration\0By appearance\0");
+  ImGui::Text("Sort by:");
+  ImGui::SameLine();
+  ImGui::SetNextItemWidth(200);
+  ImGui::Combo("##Sort by", &sortBy, "No sort\0By duration\0By appearance\0");
+}
+
+void Plotter::drawExportModal() {
+  static std::string prefix = "export";
+  if (ImGui::BeginPopupModal("Export options", nullptr,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::Text("Export prefix: ");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200);
+    ImGui::InputText("##export_file_name", &prefix);
+    std::string exportFileName = prefix + "_session.csv";
+    std::string exportStatsFileName = prefix + "_stats.csv";
+    ImGui::Text("Files will be called: %s and %s and will be saved in %s",
+								exportFileName.c_str(), exportStatsFileName.c_str(),
+								loadedPath.c_str());
+
+    if (ImGui::Button("Export")) {
+      if (!exportFileName.empty()) {
+        std::ofstream out(loadedPath + "/" + exportFileName, std::ios::out);
+        if (out.is_open()) {
+          // export session data
+          out << "Time;Duration;Path;Line;Function;Name\n";
+          for (const auto &row : sessionData) {
+            out << row.time << ";" << row.duration << ";" << row.path << ";"
+                << row.line << ";" << row.function << ";" << row.name << "\n";
+          }
+					out.close();
+        } else {
+          std::cerr << "Error: Could not open file for writing!" << std::endl;
+        }
+      } else {
+        std::cerr << "Error: Export file name cannot be empty!" << std::endl;
+      }
+
+			if (!exportStatsFileName.empty()) {
+				std::ofstream out(loadedPath + "/" + exportStatsFileName,
+													std::ios::out);
+				if (out.is_open()) {
+					// export stats
+					out << "Name;Function;File;Line;Mean Duration;Standard Deviation;"
+								 "Mean Frequency;Hits\n";
+					for (const auto &[loc, meas] : measurements) {
+						out << meas.name << ";" << meas.function << ";" << meas.file << ";"
+								<< meas.line << ";" << meas.meanDuration << ";"
+								<< meas.standardDeviation << ";" << meas.meanFrequency << ";"
+								<< meas.timeData.size() << "\n";
+					}
+					out.close();
+				} else {
+					std::cerr << "Error: Could not open stats file for writing!"
+										<< std::endl;
+				}
+			} else {
+				std::cerr << "Error: Export stats file name cannot be empty!"
+									<< std::endl;
+			}
+
+      ImGui::CloseCurrentPopup();
+    }
+
+    if (ImGui::Button("Close")) {
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
 }
