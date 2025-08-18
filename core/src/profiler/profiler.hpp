@@ -79,7 +79,6 @@ private:
   std::string outFolder;
   time_point initializationTime;
 
-  uint64_t locationIDCount = 0;
   std::map<std::string, uint64_t> locationIDMap;
 
   std::unique_ptr<FILE, FileCloser> session;
