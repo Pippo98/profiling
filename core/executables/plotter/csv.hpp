@@ -1,8 +1,9 @@
 #pragma once
 
+#include <atomic>
+#include <map>
 #include <string>
 #include <vector>
-#include <atomic>
 
 struct __attribute__((packed)) session_row_binary_t {
   double time;
@@ -12,10 +13,19 @@ struct __attribute__((packed)) session_row_binary_t {
 struct session_row_t {
   double time;
   double duration;
+  std::string_view path;
+  int line;
+  std::string_view function;
+  std::string_view name;
+};
+struct id_map {
+  uint64_t id;
   std::string path;
   int line;
   std::string function;
   std::string name;
 };
 
-bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data, std::atomic<float> &progress);
+bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
+                    std::map<uint64_t, id_map> &locationIDMap,
+                    std::atomic<float> &progress);

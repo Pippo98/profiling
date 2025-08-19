@@ -8,6 +8,7 @@
 #include <string>
 
 bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
+                    std::map<uint64_t, id_map> &locationIDMap,
                     std::atomic<float> &progress) {
   std::ifstream locationIDMapFile(path + SESSION_ID_MAP_FILENAME,
                                   std::fstream::in);
@@ -19,15 +20,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
     return false;
   }
 
-  struct id_map {
-    uint64_t id;
-    std::string path;
-    int line;
-    std::string function;
-    std::string name;
-  };
-  std::map<uint64_t, id_map> locationIDMap;
-
+	locationIDMap.clear();
   std::string line;
   while (std::getline(locationIDMapFile, line)) {
     std::stringstream ss(line);
@@ -64,7 +57,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
                                     locationIDMap[ser.location_id].line,
                                     locationIDMap[ser.location_id].function,
                                     locationIDMap[ser.location_id].name});
-		progress = (float)data.size() * sizeof(ser) / csvSize;
+    progress = (float)data.size() * sizeof(ser) / csvSize;
   }
   fclose(csv);
   return true;

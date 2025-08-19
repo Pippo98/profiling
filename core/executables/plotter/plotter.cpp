@@ -66,7 +66,7 @@ void Plotter::startLoading() {
     loadingThread->join();
   }
   loadingThread = std::make_unique<std::thread>([&]() {
-    sessionCsvValid = ReadSessionCSV(loadedPath, sessionData, progress);
+    sessionCsvValid = ReadSessionCSV(loadedPath, sessionData, locationIDMap, progress);
     processSessionData();
     loading = false;
   });
