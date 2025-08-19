@@ -61,6 +61,9 @@ void ProfilingSession::close() {
   if (!session) {
     return;
   }
+	if (!initialized) {
+		return;
+	}
   std::unique_ptr<FILE, FileCloser> outIDMap(
       fopen((outFolder + "/measures_id_map.csv").c_str(), "w"));
   if (!outIDMap) {
