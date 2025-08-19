@@ -7,7 +7,8 @@
 #include <sstream>
 #include <string>
 
-bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data, std::atomic<float> &progress) {
+bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
+                    std::atomic<float> &progress) {
   std::ifstream locationIDMapFile(path + SESSION_ID_MAP_FILENAME,
                                   std::fstream::in);
   if (!locationIDMapFile.is_open()) {
@@ -23,7 +24,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data, s
     std::string path;
     int line;
     std::string function;
-		std::string name;
+    std::string name;
   };
   std::map<uint64_t, id_map> locationIDMap;
 
@@ -47,28 +48,24 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data, s
       std::cerr << "Error: Invalid data format in the CSV file!" << std::endl;
     }
   }
-	locationIDMapFile.close();
+  locationIDMapFile.close();
 
-	size_t csvSize = 0;
-	fseek(csv, 0, SEEK_END);
-	csvSize = ftell(csv);
-	fseek(csv, 0, SEEK_SET);
+  size_t csvSize = 0;
+  fseek(csv, 0, SEEK_END);
+  csvSize = ftell(csv);
+  fseek(csv, 0, SEEK_SET);
 
   session_row_binary_t ser;
   data.clear();
+  data.reserve(csvSize / sizeof(ser));
   while (fread(&ser, sizeof(ser), 1, csv)) {
-    session_row_t row;
-
-    row.path = locationIDMap[ser.location_id].path;
-    row.line = locationIDMap[ser.location_id].line;
-    row.function = locationIDMap[ser.location_id].function;
-		row.name = locationIDMap[ser.location_id].name;
-    row.time = ser.time;
-    row.duration = ser.duration;
-
-    data.push_back(row);
+    data.emplace_back(session_row_t{ser.time, ser.duration,
+                                    locationIDMap[ser.location_id].path,
+                                    locationIDMap[ser.location_id].line,
+                                    locationIDMap[ser.location_id].function,
+                                    locationIDMap[ser.location_id].name});
 		progress = (float)data.size() * sizeof(ser) / csvSize;
   }
-	fclose(csv);
+  fclose(csv);
   return true;
 }

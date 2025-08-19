@@ -79,12 +79,12 @@ void Plotter::Draw() {
   }
 
   if (loading) {
-		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
-		if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-			ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 200,
-			                               ImGui::GetIO().DisplaySize.y / 2.0f - 50),
-			                        ImGuiCond_Always);
-		}
+    ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
+    if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+      ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 200,
+                                     ImGui::GetIO().DisplaySize.y / 2.0f - 50),
+                              ImGuiCond_Always);
+    }
 
     ImGui::Begin("Loading");
     ImGui::Text("Loading session data from %s", loadedPath.c_str());
@@ -99,12 +99,12 @@ void Plotter::Draw() {
   }
 
   if (!sessionCsvValid) {
-		ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiCond_Once);
-		if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-			ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 300,
-			                               ImGui::GetIO().DisplaySize.y / 2.0f - 200),
-			                        ImGuiCond_Always);
-		}
+    ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiCond_Once);
+    if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+      ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 300,
+                                     ImGui::GetIO().DisplaySize.y / 2.0f - 200),
+                              ImGuiCond_Always);
+    }
     ImGui::Begin("Open");
     std::string &path = KVP::getMutable("base path");
     ImGui::AlignTextToFramePadding();
@@ -126,17 +126,17 @@ void Plotter::Draw() {
     }
     ImGui::End();
   } else {
-		if(!ImGui::GetCurrentContext()->SettingsLoaded) {
-			ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
-		}
+    if (!ImGui::GetCurrentContext()->SettingsLoaded) {
+      ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
+    }
     if (ImGui::Begin("Timeline")) {
       plotTimeEvolution();
     }
     ImGui::End();
 
-		if(!ImGui::GetCurrentContext()->SettingsLoaded) {
-			ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_Once);
-		}
+    if (!ImGui::GetCurrentContext()->SettingsLoaded) {
+      ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_Once);
+    }
     if (ImGui::Begin("Statistics")) {
       plotBars();
     }
@@ -290,6 +290,7 @@ void Plotter::plotTimeEvolution() {
   ImGui::SameLine();
   ImGui::Text("Skip samples with duration less than: ");
   ImGui::SameLine();
+	ImGui::SetNextItemWidth(100);
   ImGui::InputDouble("##skip_samples_every", &lowerThreshold);
 
   auto size = ImGui::GetContentRegionAvail();
@@ -346,7 +347,7 @@ void Plotter::plotTimeEvolution() {
     if (ImPlot::BeginPlot("TimeEvolution")) {
       ImPlot::SetupAxis(ImAxis_X1, "time [s]", ImPlotAxisFlags_NoGridLines);
       ImPlot::SetupAxis(ImAxis_Y1, "##measurement point",
-                        ImPlotAxisFlags_NoGridLines);
+                        ImPlotAxisFlags_NoGridLines | ImPlotAxisFlags_AutoFit);
 
       static bool wasHovered;
 
@@ -559,15 +560,15 @@ void Plotter::plotBars() {
   if (ImGui::Button("Close session")) {
     sessionCsvValid = false;
   }
-	ImGui::SameLine();
+  ImGui::SameLine();
   if (ImGui::Button("Reload")) {
     shouldStartLoading = true;
   }
-	ImGui::SameLine();
+  ImGui::SameLine();
   if (ImGui::Button("Export")) {
     exportModalOpen = true;
   }
-	ImGui::Separator();
+  ImGui::Separator();
 
   drawSortSelector();
   ImGui::SameLine();
@@ -581,6 +582,8 @@ void Plotter::plotBars() {
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0F;
   if (ImPlot::BeginPlot("session", size)) {
+    ImPlot::SetupAxis(ImAxis_Y1, "##measurements",
+                      ImPlotAxisFlags_AutoFit);
     std::vector<double> yPosition(measurements.size());
     std::vector<double> bar(measurements.size());
     std::vector<double> std(measurements.size());
