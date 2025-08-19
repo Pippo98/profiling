@@ -71,7 +71,6 @@ void ProfilingSession::close() {
   }
 	session.reset();
 	outIDMap.reset();
-	locationIDMap.clear();
 	initialized = false;
 	amIEnabled = false;
 	initializationTime = time_point();
