@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(DIR ${CMAKE_CURRENT_LIST_DIR})
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread -O3 -std=c++2a")
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread -fPIC -O3 -std=c++2a")
 add_compile_definitions("ImDrawIdx=unsigned int")
 add_compile_definitions(IMGUI_DEFINE_MATH_OPERATORS)
 

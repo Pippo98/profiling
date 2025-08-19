@@ -36,7 +36,6 @@ void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start
   };
   std::scoped_lock lck(mtx);
   fwrite(&serializer, sizeof(serializer), 1, session.get());
-	fflush(session.get());
 }
 ProfilingSession &ProfilingSession::getGlobalInstace() noexcept {
   static ProfilingSession session;
@@ -55,10 +54,13 @@ void ProfilingSession::initialize(const std::string &_outFolder) {
 }
 
 ProfilingSession::~ProfilingSession() {
+	close();
+}
+
+void ProfilingSession::close() {
   if (!session) {
     return;
   }
-
   std::unique_ptr<FILE, FileCloser> outIDMap(
       fopen((outFolder + "/measures_id_map.csv").c_str(), "w"));
   if (!outIDMap) {
@@ -67,6 +69,12 @@ ProfilingSession::~ProfilingSession() {
   for (const auto &[location, id] : locationIDMap) {
     fprintf(outIDMap.get(), "%s;%" PRIu64 "\n", location.c_str(), id);
   }
+	session.reset();
+	outIDMap.reset();
+	locationIDMap.clear();
+	initialized = false;
+	amIEnabled = false;
+	initializationTime = time_point();
 }
 
 void ProfilingSession::enable() { amIEnabled = true; }

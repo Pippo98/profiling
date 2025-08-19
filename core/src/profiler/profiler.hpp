@@ -69,6 +69,7 @@ public:
   void enable();
   void disable();
   bool enabled() const;
+	void close();
 
   static ProfilingSession &getGlobalInstace() noexcept;
 
