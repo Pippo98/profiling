@@ -1,7 +1,5 @@
 #include "plotter.hpp"
 #include "defines.hpp"
-#include "imgui.h"
-#include "implot.h"
 #include "kvp.hpp"
 #include "utils/style.hpp"
 extern "C" {

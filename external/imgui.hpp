@@ -1,6 +1,8 @@
 #pragma once
 
 // clang-format off
+#define IMGUI_DEFINE_MATH_OPERATORS
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "imgui/imgui.h"

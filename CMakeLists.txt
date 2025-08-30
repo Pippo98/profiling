@@ -9,7 +9,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(DIR ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread -fPIC -O3 -std=c++2a")
 add_compile_definitions("ImDrawIdx=unsigned int")
-add_compile_definitions(IMGUI_DEFINE_MATH_OPERATORS)
 
 option(PROFILER_BUILD_GUI "Profiler build GUI" ON)
 option(PROFILER_BUILD_TEST "Profiler build TEST" ON)

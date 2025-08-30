@@ -1,7 +1,6 @@
 #pragma once
 
-#include "imgui.h"
-#include "implot.h"
+#include "imgui.hpp"
 
 #define DRACULA_ACCENT \
   ImVec4 { 0.74f, 0.58f, 0.98f, 1.0f }
