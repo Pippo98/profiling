@@ -33,7 +33,7 @@ void loadImGuiFont() {
   }
 }
 
-int main(int argc, char **argv) {
+int main() {
   Plotter plotter;
   plotter.SetTitle("Profiler plotter");
   plotter.Init();
@@ -311,9 +311,6 @@ void Plotter::plotTimeEvolution() {
       ImPlot::SetupAxis(ImAxis_X1, "##time", ImPlotAxisFlags_NoDecorations);
       ImPlot::SetupAxis(ImAxis_Y1, "##Measures per Second",
                         ImPlotAxisFlags_NoGridLines | ImPlotAxisFlags_AutoFit);
-      double range = limits.X.Size();
-
-      size_t N = std::min(maxAllowedSamples, measurementsPerSecond.size());
       auto start = std::lower_bound(
           measurementsPerSecond.begin(), measurementsPerSecond.end(),
           limits.X.Min, [](const time_value_pair_t<double> &el, double value) {
@@ -376,7 +373,6 @@ void Plotter::plotTimeEvolution() {
       }
       wasHovered = ImPlot::IsPlotHovered();
       limits = ImPlot::GetPlotLimits();
-      auto limitsPixels = ImPlot::PlotToPixels(limits.Min());
 
       ImPlot::GetCurrentContext()->CurrentItems->ColormapIdx = 0;
       ImPlot::PushPlotClipRect();
@@ -519,7 +515,7 @@ void Plotter::plotTimeEvolution() {
   }
 
   if (ImGui::BeginPopupModal("File preview", &modalOpened)) {
-    for (int i = 0; i < previewFileLines.size(); i++) {
+    for (int i = 0; i < (int)previewFileLines.size(); i++) {
 
       ImGui::Text("%04d | ", i + 1);
       ImGui::SameLine();
