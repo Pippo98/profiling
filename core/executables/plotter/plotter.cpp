@@ -5,11 +5,13 @@
 extern "C" {
 #include "tinyfiledialogs.h"
 }
+
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <inttypes.h>
 
 ImFont *h1;
 ImFont *h2;
@@ -262,7 +264,7 @@ void drawElementTooltip(const measurement_element_t &element,
                        element.function.c_str());
     ImGui::Text("File and line:");
     ImGui::SameLine();
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s:%ld",
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(borderColor), "%s:%" PRIu64 "",
                        element.file.c_str(), element.line);
     ImGui::Separator();
     ImGui::Text("Hits: %ld", element.timeData.size());
