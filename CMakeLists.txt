@@ -10,10 +10,12 @@ set(DIR ${CMAKE_CURRENT_LIST_DIR})
 
 add_compile_definitions("ImDrawIdx=unsigned int")
 
-if (MSVC)
-    add_compile_options(/O2)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /Zi /W4 /WX")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG /w")
 else()
-    add_compile_options(-O3 -pthread -fPIC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -Wall -Wextra -Werror")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -w")
 endif()
 
 option(PROFILER_BUILD_GUI "Profiler build GUI" ON)
