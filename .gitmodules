@@ -5,3 +5,7 @@
 [submodule "implot"]
 	path = external/implot
 	url = git@github.com:epezent/implot.git
+[submodule "external/imgui"]
+	url = https://github.com/ocornut/imgui.git
+[submodule "external/implot"]
+	url = https://github.com/epezent/implot.git
