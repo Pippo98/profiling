@@ -46,12 +46,13 @@ target_include_directories(imgui PUBLIC
     ${GLEW_INCLUDE_DIRS}
 )
 
-add_library(tinyfiledialogs STATIC
-    ${CDIR}/tinyfiledialogs/tinyfiledialogs.c
-)
-
-target_include_directories(tinyfiledialogs PUBLIC
-    ${CDIR}/tinyfiledialogs
-)
+if (NOT TARGET tinyfiledialogs)
+  add_library(tinyfiledialogs STATIC
+      ${CDIR}/tinyfiledialogs/tinyfiledialogs.c
+  )
+  target_include_directories(tinyfiledialogs PUBLIC
+      ${CDIR}/tinyfiledialogs
+  )
+endif()
 
 endif()
