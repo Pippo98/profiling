@@ -12,10 +12,17 @@ bool App::Init() {
   return true;
 }
 void App::Run() {
+  constexpr double targetFrameTime = 1.0 / 60.0;
+  double lastTime = glfwGetTime();
   while (!glfwWindowShouldClose(window)) {
     render::NewFrame();
     Draw();
     Render();
+    double currentTime = glfwGetTime();
+    double frameTime = currentTime - lastTime;
+    if (frameTime < targetFrameTime) {
+      glfwWaitEventsTimeout(targetFrameTime - frameTime);
+    }
   }
 }
 void App::Shutdown() {

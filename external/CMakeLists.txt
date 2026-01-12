@@ -51,7 +51,8 @@ if (NOT TARGET tinyfiledialogs)
       ${CDIR}/tinyfiledialogs/tinyfiledialogs.c
   )
   target_include_directories(tinyfiledialogs PUBLIC
-      ${CDIR}/tinyfiledialogs
+      $<BUILD_INTERFACE:${CDIR}/tinyfiledialogs>
+      $<INSTALL_INTERFACE:include>
   )
 endif()
 
