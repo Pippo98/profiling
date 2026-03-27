@@ -3,6 +3,9 @@
 #include <map>
 #include <string>
 
+#define KVP_PATH ".kvp_storage"
+#define KVP_SEPARATOR "@=@"
+
 typedef std::map<std::string, std::string> kvp_t;
 
 class KVP {

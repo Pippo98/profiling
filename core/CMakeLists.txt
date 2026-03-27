@@ -2,11 +2,6 @@ set(CDIR ${CMAKE_CURRENT_LIST_DIR})
 set(PROFILER_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake)
 
 
-configure_file(
-    ${CDIR}/src/defines.hpp.in
-    ${CMAKE_CURRENT_BINARY_DIR}/defines.hpp
-)
-
 add_library(profiler
     ${CDIR}/src/profiler/profiler.cpp
 )

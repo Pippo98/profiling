@@ -91,7 +91,7 @@ GLFWwindow *OpenWindow(const char *title) {
 
   GLFWmonitor *monitor = glfwGetPrimaryMonitor();
 
-  glfwWindowHint(GLFW_SAMPLES, 4);
+  glfwWindowHint(GLFW_SAMPLES, 1);
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 #ifndef __APPLE__
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);

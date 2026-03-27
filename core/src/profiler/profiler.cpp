@@ -8,8 +8,6 @@
 #include <map>
 #include <memory>
 
-#include "defines.hpp"
-
 static inline constexpr double getDeltaSecs(const auto &delta_t) {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(delta_t)
              .count() /
