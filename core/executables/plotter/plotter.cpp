@@ -175,16 +175,27 @@ void Plotter::processSessionData() {
   keysByAppearance.clear();
   measurementsPerSecond.resize(sessionData.size());
   std::vector<double> measurementsTimes(sessionData.size());
+  std::unordered_map<uint64_t, measurement_element_t *> locationCache;
+  constexpr size_t kProgressStride = 4096;
   for (size_t i = 0; i < sessionData.size(); i++) {
     const auto &row = sessionData[i];
 
-    measurement_element_t &meas = measurements[getLocation(row)];
+    measurement_element_t *measPtr;
+    auto cached = locationCache.find(row.locationId);
+    if (cached == locationCache.end()) {
+      measurement_element_t &meas = measurements[getLocation(row)];
+      meas.function = row.function;
+      meas.line = row.line;
+      meas.path = row.path;
+      meas.file = std::filesystem::path(row.path).filename();
+      meas.name = row.name;
+      measPtr = &meas;
+      locationCache.emplace(row.locationId, measPtr);
+    } else {
+      measPtr = cached->second;
+    }
+    measurement_element_t &meas = *measPtr;
 
-    meas.function = row.function;
-    meas.line = row.line;
-    meas.path = row.path;
-    meas.file = std::filesystem::path(row.path).filename();
-    meas.name = row.name;
     meas.timeData.push_back({row.time, row.duration});
     if (meas.startAndDuration.time == -1) {
       meas.startAndDuration.time = row.time;
@@ -195,7 +206,9 @@ void Plotter::processSessionData() {
 
     measurementsTimes[i] = row.time;
 
-    progress = (double)i / sessionData.size();
+    if ((i % kProgressStride) == 0 || i + 1 == sessionData.size()) {
+      progress = (double)(i + 1) / sessionData.size();
+    }
   }
 
   if (measurementsTimes.empty()) {
