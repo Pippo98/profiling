@@ -52,7 +52,7 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
   data.clear();
   data.reserve(csvSize / sizeof(ser));
   while (fread(&ser, sizeof(ser), 1, csv)) {
-    data.emplace_back(session_row_t{ser.time, ser.duration,
+    data.emplace_back(session_row_t{ser.time / 1e9, ser.duration / 1e9,
                                     locationIDMap[ser.location_id].path,
                                     locationIDMap[ser.location_id].line,
                                     locationIDMap[ser.location_id].function,

@@ -51,4 +51,4 @@ data/
 core/src/defines.hpp
 
 measures_id_map.csv
-profiler_session.csv
+profiler_session.bin

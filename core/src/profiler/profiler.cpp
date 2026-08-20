@@ -1,3 +1,4 @@
+#include "defines.hpp"
 #include "profiler.hpp"
 
 #include <algorithm>
@@ -11,10 +12,9 @@
 
 static constexpr size_t kSessionBufferSize = 1 << 20;
 
-static inline constexpr double getDeltaSecs(const auto &delta_t) {
+static inline constexpr int64_t getDeltaNanos(const auto &delta_t) {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(delta_t)
-             .count() /
-         1e9;
+      .count();
 }
 
 static thread_local MeasureBuffer tlsMeasureBuffer;
@@ -25,7 +25,7 @@ MeasureScope::~MeasureScope() noexcept {
 
 void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start,
                                   const time_point &end) noexcept {
-  if (!enabled()) {
+  if (!enabled()) [[unlikely]] {
     return;
   }
   if (!initialized) [[unlikely]] {
@@ -33,9 +33,9 @@ void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start
   }
 
   const measure_t serializer{
-    .time = getDeltaSecs(start - initializationTime),
+    .time = getDeltaNanos(start - initializationTime),
     .id = loc.locationID,
-    .duration = getDeltaSecs(end - start),
+    .duration = getDeltaNanos(end - start),
   };
   tlsMeasureBuffer.push(serializer);
 }
@@ -91,7 +91,7 @@ void ProfilingSession::initialize(const std::string &_outFolder) {
   outFolder = _outFolder;
 
   session = std::unique_ptr<FILE, FileCloser>(
-      fopen((outFolder + "/profiler_session.csv").c_str(), "wb"));
+      fopen((outFolder + "/" SESSION_FILENAME).c_str(), "wb"));
   if (!session) {
     return;
   }
@@ -121,7 +121,7 @@ void ProfilingSession::close() {
     buffers.clear();
   }
   std::unique_ptr<FILE, FileCloser> outIDMap(
-      fopen((outFolder + "/measures_id_map.csv").c_str(), "w"));
+      fopen((outFolder + "/" SESSION_ID_MAP_FILENAME).c_str(), "w"));
   if (!outIDMap) {
     return;
   }

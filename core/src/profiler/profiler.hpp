@@ -42,9 +42,9 @@ class LocationID;
 class MeasureBuffer;
 
 struct measure_t {
-  double time;
+  int64_t time;
   uint64_t id;
-  double duration;
+  int64_t duration;
 };
 
 class ProfilingSession {

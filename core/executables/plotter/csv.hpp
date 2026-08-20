@@ -6,9 +6,9 @@
 #include <vector>
 
 struct __attribute__((packed)) session_row_binary_t {
-  double time;
+  int64_t time;
   uint64_t location_id;
-  double duration;
+  int64_t duration;
 };
 struct session_row_t {
   double time;
