@@ -415,6 +415,7 @@ void Plotter::plotTimeEvolution() {
 
         size_t startIdx = 0;
         size_t i = 0;
+        size_t keepCounter = 0;
         for (i = 0; i < meas.timeData.size();
              skipEvery >= 0 ? i++ : i += -skipEvery) {
           const auto &td = meas.timeData[i];
@@ -432,11 +433,10 @@ void Plotter::plotTimeEvolution() {
             continue;
           }
 
-          if (skipEvery != 0) {
-            if (skipEvery > 0 && lastFrameSamples[loc] % skipEvery == 0) {
-              continue;
-            } else if (skipEvery < 0 &&
-                       lastFrameSamples[loc] % (-skipEvery) != 0) {
+          if (skipEvery > 0) {
+            bool skip = keepCounter % skipEvery == 0;
+            keepCounter++;
+            if (skip) {
               continue;
             }
           }
