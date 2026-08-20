@@ -1,5 +1,6 @@
 #include "profiler.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <inttypes.h>
 
@@ -8,11 +9,15 @@
 #include <map>
 #include <memory>
 
+static constexpr size_t kSessionBufferSize = 1 << 20;
+
 static inline constexpr double getDeltaSecs(const auto &delta_t) {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(delta_t)
              .count() /
          1e9;
 }
+
+static thread_local MeasureBuffer tlsMeasureBuffer;
 
 MeasureScope::~MeasureScope() noexcept {
   ProfilingSession::getGlobalInstace().addMeasure(loc, start, std::chrono::steady_clock::now());
@@ -32,9 +37,52 @@ void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start
     .id = loc.locationID,
     .duration = getDeltaSecs(end - start),
   };
-  std::scoped_lock lck(mtx);
-  fwrite(&serializer, sizeof(serializer), 1, session.get());
+  tlsMeasureBuffer.push(serializer);
 }
+
+void MeasureBuffer::push(const measure_t &m) noexcept {
+  auto &sessionInst = ProfilingSession::getGlobalInstace();
+  if (!registered) {
+    sessionInst.registerBuffer(this);
+    registered = true;
+  }
+  data[count++] = m;
+  if (count == kCapacity) {
+    sessionInst.flushBuffer(*this);
+  }
+}
+
+MeasureBuffer::~MeasureBuffer() noexcept {
+  ProfilingSession::getGlobalInstace().retireBuffer(this);
+}
+
+void ProfilingSession::registerBuffer(MeasureBuffer *buf) noexcept {
+  std::scoped_lock lck(mtx);
+  buffers.push_back(buf);
+}
+
+void ProfilingSession::retireBuffer(MeasureBuffer *buf) noexcept {
+  std::scoped_lock lck(mtx);
+  writeLocked(buf->data.data(), buf->count);
+  buf->count = 0;
+  buffers.erase(std::remove(buffers.begin(), buffers.end(), buf),
+               buffers.end());
+}
+
+void ProfilingSession::flushBuffer(MeasureBuffer &buf) noexcept {
+  std::scoped_lock lck(mtx);
+  writeLocked(buf.data.data(), buf.count);
+  buf.count = 0;
+}
+
+void ProfilingSession::writeLocked(const measure_t *data,
+                                   size_t count) noexcept {
+  if (!session || count == 0) {
+    return;
+  }
+  fwrite(data, sizeof(measure_t), count, session.get());
+}
+
 ProfilingSession &ProfilingSession::getGlobalInstace() noexcept {
   static ProfilingSession session;
   return session;
@@ -47,6 +95,7 @@ void ProfilingSession::initialize(const std::string &_outFolder) {
   if (!session) {
     return;
   }
+  setvbuf(session.get(), nullptr, _IOFBF, kSessionBufferSize);
   initialized = true;
   initializationTime = std::chrono::steady_clock::now();
 }
@@ -62,6 +111,15 @@ void ProfilingSession::close() {
 	if (!initialized) {
 		return;
 	}
+  {
+    std::scoped_lock lck(mtx);
+    for (MeasureBuffer *buf : buffers) {
+      writeLocked(buf->data.data(), buf->count);
+      buf->count = 0;
+      buf->registered = false;
+    }
+    buffers.clear();
+  }
   std::unique_ptr<FILE, FileCloser> outIDMap(
       fopen((outFolder + "/measures_id_map.csv").c_str(), "w"));
   if (!outIDMap) {

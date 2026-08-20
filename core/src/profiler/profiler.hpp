@@ -1,10 +1,12 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #if __has_include(<experimental/source_location>)
 #include <experimental/source_location>
@@ -37,6 +39,7 @@ struct FileCloser {
 #endif
 
 class LocationID;
+class MeasureBuffer;
 
 struct measure_t {
   double time;
@@ -57,8 +60,14 @@ private:
     locationIDMap[sstr] = id;
   }
 
+  void registerBuffer(MeasureBuffer *buf) noexcept;
+  void retireBuffer(MeasureBuffer *buf) noexcept;
+  void flushBuffer(MeasureBuffer &buf) noexcept;
+  void writeLocked(const measure_t *data, size_t count) noexcept;
+
   friend class MeasureScope;
   friend class LocationID;
+  friend class MeasureBuffer;
   ProfilingSession() = default;
 
 public:
@@ -75,14 +84,30 @@ public:
 
 private:
   std::mutex mtx;
-  bool amIEnabled;
-  bool initialized;
+  bool amIEnabled = false;
+  bool initialized = false;
   std::string outFolder;
   time_point initializationTime;
 
   std::map<std::string, uint64_t> locationIDMap;
+  std::vector<MeasureBuffer *> buffers;
 
   std::unique_ptr<FILE, FileCloser> session;
+};
+
+class MeasureBuffer {
+public:
+  ~MeasureBuffer() noexcept;
+  void push(const measure_t &m) noexcept;
+
+private:
+  static constexpr size_t kCapacity = 1024;
+
+  std::array<measure_t, kCapacity> data;
+  size_t count = 0;
+  bool registered = false;
+
+  friend class ProfilingSession;
 };
 
 class LocationID {

@@ -21,7 +21,7 @@ int main(void) {
   ProfilingSession::getGlobalInstace().initialize(PROJECT_PATH);
 	ProfilingSession::getGlobalInstace().enable();
 
-  constexpr int iterations = 8000;
+  constexpr int iterations = 32000;
 
   long durations[iterations];
   int a = 0;
