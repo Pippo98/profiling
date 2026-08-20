@@ -7,6 +7,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -169,6 +170,24 @@ std::string extractFileAndLine(const std::string &input) {
   return {};
 }
 
+double percentileFromSorted(const std::vector<double> &sortedValues, double p) {
+  if (sortedValues.empty()) {
+    return 0.0;
+  }
+  size_t idx = static_cast<size_t>(p / 100.0 * (sortedValues.size() - 1));
+  return sortedValues[idx];
+}
+
+bool containsCaseInsensitive(const std::string &haystack,
+                             const std::string &needle) {
+  auto it = std::search(
+      haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+      [](unsigned char a, unsigned char b) {
+        return std::tolower(a) == std::tolower(b);
+      });
+  return it != haystack.end();
+}
+
 void Plotter::processSessionData() {
   measurements.clear();
   keysByDuration.clear();
@@ -202,7 +221,6 @@ void Plotter::processSessionData() {
     }
     meas.meanDuration += row.duration;
     meas.startAndDuration.duration = row.time + row.duration;
-    meas.maxDuration = std::max(meas.maxDuration, row.duration);
 
     measurementsTimes[i] = row.time;
 
@@ -232,11 +250,24 @@ void Plotter::processSessionData() {
     meas.meanFrequency = meas.timeData.size() / meas.startAndDuration.duration;
     meas.meanDuration /= meas.timeData.size();
     endTime = std::max(endTime, meas.timeData.back().time);
+
+    std::vector<double> sortedDurations;
+    sortedDurations.reserve(meas.timeData.size());
+    for (const auto &timeData : meas.timeData) {
+      sortedDurations.push_back(timeData.duration);
+    }
+    std::sort(sortedDurations.begin(), sortedDurations.end());
+    meas.minDuration = sortedDurations.front();
+    meas.maxDuration = sortedDurations.back();
+    meas.p50Duration = percentileFromSorted(sortedDurations, 50.0);
+    meas.p90Duration = percentileFromSorted(sortedDurations, 90.0);
+    meas.p99Duration = percentileFromSorted(sortedDurations, 99.0);
     for (const auto &timeData : meas.timeData) {
       meas.standardDeviation +=
           std::pow(timeData.duration - meas.meanDuration, 2.0);
     }
-    meas.standardDeviation = std::sqrt(meas.standardDeviation);
+    meas.standardDeviation =
+        std::sqrt(meas.standardDeviation / meas.timeData.size());
     std::cout << getLocation(meas) << " => " << meas.meanDuration << " "
               << meas.standardDeviation << std::endl;
     keysByDuration.push_back(loc);
@@ -290,6 +321,12 @@ void drawElementTooltip(const measurement_element_t &element,
     ImGui::Text("Mean frequency: %0.3f Hz", element.meanFrequency);
     ImGui::Text("Cumulative time: %0.9f s",
                 element.meanDuration * element.timeData.size());
+    ImGui::Separator();
+    ImGui::Text("Min duration: %0.9f s", element.minDuration);
+    ImGui::Text("p50 duration: %0.9f s", element.p50Duration);
+    ImGui::Text("p90 duration: %0.9f s", element.p90Duration);
+    ImGui::Text("p99 duration: %0.9f s", element.p99Duration);
+    ImGui::Text("Max duration: %0.9f s", element.maxDuration);
     if (timeInstanceId != -1) {
       ImGui::Separator();
       ImGui::Text("Hit #: %ld", timeInstanceId);
@@ -310,6 +347,11 @@ void Plotter::plotTimeEvolution() {
   ImGui::SameLine();
 	ImGui::SetNextItemWidth(100);
   ImGui::InputDouble("##skip_samples_every", &lowerThreshold);
+  ImGui::SameLine();
+  ImGui::Text("Search:");
+  ImGui::SameLine();
+  ImGui::SetNextItemWidth(200);
+  ImGui::InputText("##search_filter", &searchFilter);
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
@@ -398,6 +440,10 @@ void Plotter::plotTimeEvolution() {
       const auto mousePos = ImPlot::GetPlotMousePos();
       int row = -1;
       for (auto &[loc, meas] : measurements) {
+        if (!searchFilter.empty() &&
+            !containsCaseInsensitive(meas.displayLabel, searchFilter)) {
+          continue;
+        }
         row++;
 
         int sortedRow = row;
@@ -496,6 +542,10 @@ void Plotter::plotTimeEvolution() {
 
       row = 0;
       for (auto &[loc, meas] : measurements) {
+        if (!searchFilter.empty() &&
+            !containsCaseInsensitive(meas.displayLabel, searchFilter)) {
+          continue;
+        }
         int sortedRow = row;
         if (sortBy == (int)SortBy::Duration) {
           sortedRow = meas.durationSortedIndex;
@@ -595,6 +645,11 @@ void Plotter::plotBars() {
   const char *plotOptions[] = {"Mean", "Cumulative", "Percentage of total time",
                                "Counts", "Frequency"};
   ImGui::Combo("##Plot options", &opts, plotOptions, IM_ARRAYSIZE(plotOptions));
+  ImGui::SameLine();
+  ImGui::Text("Search:");
+  ImGui::SameLine();
+  ImGui::SetNextItemWidth(200);
+  ImGui::InputText("##search_filter_bars", &searchFilter);
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0F;
@@ -604,9 +659,16 @@ void Plotter::plotBars() {
     std::vector<double> yPosition(measurements.size());
     std::vector<double> bar(measurements.size());
     std::vector<double> std(measurements.size());
+    std::vector<double> minVals(measurements.size());
+    std::vector<double> p90Vals(measurements.size());
+    std::vector<double> maxVals(measurements.size());
 
     int row = 0;
     for (auto &[loc, meas] : measurements) {
+      if (!searchFilter.empty() &&
+          !containsCaseInsensitive(meas.displayLabel, searchFilter)) {
+        continue;
+      }
       yPosition[row] = row;
       if (sortBy == (int)SortBy::Duration) {
         yPosition[row] = meas.durationSortedIndex;
@@ -616,6 +678,9 @@ void Plotter::plotBars() {
       if (opts == 0) {
         bar[row] = meas.meanDuration;
         std[row] = meas.standardDeviation;
+        minVals[row] = meas.minDuration;
+        p90Vals[row] = meas.p90Duration;
+        maxVals[row] = meas.maxDuration;
       } else if (opts == 1) {
         bar[row] = meas.meanDuration * meas.timeData.size();
       } else if (opts == 2) {
@@ -629,6 +694,12 @@ void Plotter::plotBars() {
       }
       row++;
     }
+    yPosition.resize(row);
+    bar.resize(row);
+    std.resize(row);
+    minVals.resize(row);
+    p90Vals.resize(row);
+    maxVals.resize(row);
 
     const char *name = plotOptions[opts];
     ImPlot::PlotBars(name, bar.data(), yPosition.data(), bar.size(),
@@ -637,11 +708,21 @@ void Plotter::plotBars() {
       ImPlot::PlotErrorBars("Standard deviation", bar.data(), yPosition.data(),
                             std.data(), bar.size(),
                             ImPlotErrorBarsFlags_Horizontal);
+      ImPlot::PlotScatter("Min", minVals.data(), yPosition.data(),
+                          minVals.size());
+      ImPlot::PlotScatter("P90", p90Vals.data(), yPosition.data(),
+                          p90Vals.size());
+      ImPlot::PlotScatter("Max", maxVals.data(), yPosition.data(),
+                          maxVals.size());
     }
 
     row = 0;
     auto pltMin = ImPlot::GetPlotLimits();
     for (auto &[loc, meas] : measurements) {
+      if (!searchFilter.empty() &&
+          !containsCaseInsensitive(meas.displayLabel, searchFilter)) {
+        continue;
+      }
       int sortedRow = row;
       if (sortBy == (int)SortBy::Duration) {
         sortedRow = meas.durationSortedIndex;
@@ -710,12 +791,15 @@ void Plotter::drawExportModal() {
                           std::ios::out);
         if (out.is_open()) {
           out << "name;function;file;line;mean duration;standard deviation;"
-                 "mean frequency;hits\n";
+                 "mean frequency;hits;min duration;p50 duration;p90 duration;"
+                 "p99 duration;max duration\n";
           for (const auto &[loc, meas] : measurements) {
             out << meas.name << ";" << meas.function << ";" << meas.file << ";"
                 << meas.line << ";" << meas.meanDuration << ";"
                 << meas.standardDeviation << ";" << meas.meanFrequency << ";"
-                << meas.timeData.size() << "\n";
+                << meas.timeData.size() << ";" << meas.minDuration << ";"
+                << meas.p50Duration << ";" << meas.p90Duration << ";"
+                << meas.p99Duration << ";" << meas.maxDuration << "\n";
           }
           out.close();
         } else {

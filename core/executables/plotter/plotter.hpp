@@ -36,7 +36,11 @@ struct measurement_element_t {
   double meanDuration;
   double standardDeviation;
   double meanFrequency;
+  double minDuration = 0.0;
   double maxDuration = 0.0;
+  double p50Duration = 0.0;
+  double p90Duration = 0.0;
+  double p99Duration = 0.0;
 
   std::string path;
   std::string file;
@@ -98,4 +102,5 @@ private:
   std::vector<std::string> keysByAppearance;
 
 	int sortBy = (int)SortBy::None;
+	std::string searchFilter;
 };
