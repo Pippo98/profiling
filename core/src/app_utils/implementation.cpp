@@ -23,7 +23,7 @@ void App::Run() {
   }
 }
 void App::Shutdown() {
-  ImGui_ImplOpenGL2_Shutdown();
+  ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
   glfwDestroyWindow(window);
@@ -42,7 +42,7 @@ namespace render {
 
 void NewFrame() {
   glfwPollEvents();
-  ImGui_ImplOpenGL2_NewFrame();
+  ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   window::Dockspace(ImGui::GetMainViewport()->WorkSize.x,
@@ -60,7 +60,7 @@ void Render(GLFWwindow *window, ImVec4 clearColor) {
                clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
     ImGui::UpdatePlatformWindows();
     ImGui::RenderPlatformWindowsDefault();
@@ -90,7 +90,14 @@ GLFWwindow *OpenWindow(const char *title) {
 
   glfwWindowHint(GLFW_SAMPLES, 1);
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-#ifndef __APPLE__
+#ifdef __APPLE__
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#else
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
 #endif
 
@@ -132,7 +139,11 @@ void InitImgui(GLFWwindow *window) {
 
   // Setup Platform/Renderer backends
   ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL2_Init();
+#ifdef __APPLE__
+  ImGui_ImplOpenGL3_Init("#version 150");
+#else
+  ImGui_ImplOpenGL3_Init("#version 130");
+#endif
 }
 
 void Dockspace(float width, float height) {

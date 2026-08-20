@@ -23,7 +23,7 @@ endif()
 add_library(imgui STATIC
     ${imgui_srcs}
     ${CDIR}/imgui/backends/imgui_impl_glfw.cpp
-    ${CDIR}/imgui/backends/imgui_impl_opengl2.cpp
+    ${CDIR}/imgui/backends/imgui_impl_opengl3.cpp
     ${CDIR}/imgui/misc/cpp/imgui_stdlib.cpp
 
     ${implot_srcs}
