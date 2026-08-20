@@ -35,15 +35,18 @@ struct measurement_element_t {
   double meanDuration;
   double standardDeviation;
   double meanFrequency;
+  double maxDuration = 0.0;
 
   std::string path;
   std::string file;
   uint64_t line;
   std::string function;
   std::string name;
+  std::string displayLabel;
 
   size_t durationSortedIndex;
   size_t appearanceSortedIndex;
+  size_t lastFrameSamples = 0;
 };
 inline std::string getLocation(const measurement_element_t &el) {
   return el.path + "(" + std::to_string(el.line) + "): " + el.function;

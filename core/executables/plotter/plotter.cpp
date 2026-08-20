@@ -191,6 +191,7 @@ void Plotter::processSessionData() {
     }
     meas.meanDuration += row.duration;
     meas.startAndDuration.duration = row.time + row.duration;
+    meas.maxDuration = std::max(meas.maxDuration, row.duration);
 
     measurementsTimes[i] = row.time;
 
@@ -210,6 +211,10 @@ void Plotter::processSessionData() {
   }
   endTime = 0.0;
   for (auto &[loc, meas] : measurements) {
+    std::sort(meas.timeData.begin(), meas.timeData.end(),
+              [](const auto &a, const auto &b) { return a.time < b.time; });
+    meas.displayLabel = meas.name + "\n" + meas.file + ":" +
+                        std::to_string(meas.line) + "\n" + meas.function;
     meas.standardDeviation = 0.0;
     meas.meanFrequency = meas.timeData.size() / meas.startAndDuration.duration;
     meas.meanDuration /= meas.timeData.size();
@@ -297,7 +302,6 @@ void Plotter::plotTimeEvolution() {
   float yIncrement = 1.0f;
   static ImPlotRect limits(0, endTime, 0, 0);
   const size_t maxAllowedSamples{5000};
-  static std::map<std::string, size_t> lastFrameSamples;
 
   ssize_t showTooltip = -1;
   std::string tooltipElement;
@@ -378,6 +382,7 @@ void Plotter::plotTimeEvolution() {
 
       ImPlot::GetCurrentContext()->CurrentItems->ColormapIdx = 0;
       ImPlot::PushPlotClipRect();
+      const auto mousePos = ImPlot::GetPlotMousePos();
       int row = -1;
       for (auto &[loc, meas] : measurements) {
         row++;
@@ -398,8 +403,8 @@ void Plotter::plotTimeEvolution() {
           continue;
         }
 
-        size_t lastSamples = lastFrameSamples[loc];
-        lastFrameSamples[loc] = 0;
+        size_t lastSamples = meas.lastFrameSamples;
+        meas.lastFrameSamples = 0;
         int skipEvery = 0;
         if (lastSamples > maxAllowedSamples) {
           double ratio =
@@ -413,10 +418,16 @@ void Plotter::plotTimeEvolution() {
             skipEvery++;
         }
 
+        const double searchMin = limits.Min().x - meas.maxDuration;
+        auto seekIt = std::lower_bound(
+            meas.timeData.begin(), meas.timeData.end(), searchMin,
+            [](const measurement_element_t::time_and_duration &td,
+               double value) { return td.time < value; });
+
         size_t startIdx = 0;
-        size_t i = 0;
+        size_t i = std::distance(meas.timeData.begin(), seekIt);
         size_t keepCounter = 0;
-        for (i = 0; i < meas.timeData.size();
+        for (; i < meas.timeData.size();
              skipEvery >= 0 ? i++ : i += -skipEvery) {
           const auto &td = meas.timeData[i];
           if (td.time + td.duration < limits.Min().x) {
@@ -446,7 +457,6 @@ void Plotter::plotTimeEvolution() {
               ImPlotPoint(td.time + td.duration, yIncrement * (sortedRow + 1)));
           ImPlotRect rect(rmin.x, rmax.x, rmin.y, rmax.y);
           ImPlot::GetPlotDrawList()->AddRectFilled(rmin, rmax, col);
-          const auto &mousePos = ImPlot::GetPlotMousePos();
           if (mousePos.x > td.time && mousePos.x < td.time + td.duration &&
               mousePos.y > yIncrement * sortedRow &&
               mousePos.y < yIncrement * (sortedRow + 1)) {
@@ -460,7 +470,7 @@ void Plotter::plotTimeEvolution() {
             }
           }
         }
-        lastFrameSamples[loc] = i - startIdx;
+        meas.lastFrameSamples = i - startIdx;
       }
 
       ImPlot::PopPlotClipRect();
@@ -479,10 +489,8 @@ void Plotter::plotTimeEvolution() {
         } else if (sortBy == (int)SortBy::Appearance) {
           sortedRow = meas.appearanceSortedIndex;
         }
-        std::string text = meas.name + "\n" + meas.file + ":" +
-                           std::to_string(meas.line) + "\n" + meas.function;
-        float sizeX = ImGui::CalcTextSize(text.c_str()).x;
-        ImPlot::PlotText(text.c_str(), limits.Min().x,
+        float sizeX = ImGui::CalcTextSize(meas.displayLabel.c_str()).x;
+        ImPlot::PlotText(meas.displayLabel.c_str(), limits.Min().x,
                          (sortedRow + 0.5) * (yIncrement),
                          ImVec2(sizeX / 2.0f, 0));
         row++;
@@ -627,11 +635,9 @@ void Plotter::plotBars() {
       } else if (sortBy == (int)SortBy::Appearance) {
         sortedRow = meas.appearanceSortedIndex;
       }
-      std::string text = meas.name + "\n" + meas.file + ":" +
-                         std::to_string(meas.line) + "\n" + meas.function;
-      float sizeX = ImGui::CalcTextSize(text.c_str()).x;
-      ImPlot::PlotText(text.c_str(), pltMin.Min().x, sortedRow * (yIncrement),
-                       ImVec2(sizeX / 2.0F, 0));
+      float sizeX = ImGui::CalcTextSize(meas.displayLabel.c_str()).x;
+      ImPlot::PlotText(meas.displayLabel.c_str(), pltMin.Min().x,
+                       sortedRow * (yIncrement), ImVec2(sizeX / 2.0F, 0));
       row++;
     }
 
