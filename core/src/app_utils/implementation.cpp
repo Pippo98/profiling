@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "frame_rate_control.hpp"
 #include "render.hpp"
 #include "window.hpp"
 
@@ -12,17 +13,13 @@ bool App::Init() {
   return true;
 }
 void App::Run() {
-  constexpr double targetFrameTime = 1.0 / 60.0;
-  double lastTime = glfwGetTime();
+  FrameRateControl frameRateControl(60.0, 5.0);
   while (!glfwWindowShouldClose(window)) {
     render::NewFrame();
+    frameRateControl.start();
     Draw();
     Render();
-    double currentTime = glfwGetTime();
-    double frameTime = currentTime - lastTime;
-    if (frameTime < targetFrameTime) {
-      glfwWaitEventsTimeout(targetFrameTime - frameTime);
-    }
+    frameRateControl.maybeWait();
   }
 }
 void App::Shutdown() {
