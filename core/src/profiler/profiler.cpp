@@ -39,12 +39,14 @@ void ProfilingSession::addMeasure(const LocationID &loc, const time_point &start
   tlsMeasureBuffer.push(serializer);
 }
 
-void MeasureBuffer::push(const measure_t &m) noexcept {
+void MeasureBuffer::push(measure_t m) noexcept {
   auto &sessionInst = ProfilingSession::getGlobalInstace();
   if (!registered) {
+    threadId = sessionInst.allocateThreadId();
     sessionInst.registerBuffer(this);
     registered = true;
   }
+  m.threadId = threadId;
   data[count++] = m;
   if (count == kCapacity) {
     sessionInst.flushBuffer(*this);
@@ -80,6 +82,10 @@ void ProfilingSession::writeLocked(const measure_t *data,
     return;
   }
   fwrite(data, sizeof(measure_t), count, session.get());
+}
+
+uint64_t ProfilingSession::allocateThreadId() noexcept {
+  return nextThreadId.fetch_add(1, std::memory_order_relaxed);
 }
 
 ProfilingSession &ProfilingSession::getGlobalInstace() noexcept {

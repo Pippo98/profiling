@@ -215,7 +215,7 @@ void Plotter::processSessionData() {
     }
     measurement_element_t &meas = *measPtr;
 
-    meas.timeData.push_back({row.time, row.duration});
+    meas.timeData.push_back({row.time, row.duration, row.threadId});
     if (meas.startAndDuration.time == -1) {
       meas.startAndDuration.time = row.time;
     }
@@ -333,6 +333,8 @@ void drawElementTooltip(const measurement_element_t &element,
       ImGui::Text("Time: %0.9f s", element.timeData[timeInstanceId].time);
       ImGui::Text("Duration: %0.9f s",
                   element.timeData[timeInstanceId].duration);
+      ImGui::Text("Thread: %" PRIu64,
+                  element.timeData[timeInstanceId].threadId);
     }
     ImGui::EndTooltip();
   }
@@ -643,13 +645,63 @@ void Plotter::plotBars() {
   ImGui::SameLine();
   ImGui::SetNextItemWidth(200);
   const char *plotOptions[] = {"Mean", "Cumulative", "Percentage of total time",
-                               "Counts", "Frequency"};
+                               "Counts", "Frequency", "Histogram"};
   ImGui::Combo("##Plot options", &opts, plotOptions, IM_ARRAYSIZE(plotOptions));
   ImGui::SameLine();
   ImGui::Text("Search:");
   ImGui::SameLine();
   ImGui::SetNextItemWidth(200);
   ImGui::InputText("##search_filter_bars", &searchFilter);
+
+  constexpr int kHistogramOption = 5;
+  if (opts == kHistogramOption) {
+    static std::string selectedLocation;
+    if (!measurements.empty() &&
+        measurements.find(selectedLocation) == measurements.end()) {
+      selectedLocation = measurements.begin()->first;
+    }
+    const measurement_element_t *selectedMeas =
+        measurements.empty() ? nullptr : &measurements.at(selectedLocation);
+
+    ImGui::SetNextItemWidth(400);
+    const char *previewLabel = selectedMeas ? selectedMeas->name.c_str() : "No data";
+    if (ImGui::BeginCombo("##histogram_location", previewLabel)) {
+      for (auto &[loc, meas] : measurements) {
+        if (!searchFilter.empty() &&
+            !containsCaseInsensitive(meas.displayLabel, searchFilter)) {
+          continue;
+        }
+        std::string itemLabel = meas.name + " (" + meas.file + ":" +
+                                std::to_string(meas.line) + ")";
+        bool isSelected = (loc == selectedLocation);
+        if (ImGui::Selectable(itemLabel.c_str(), isSelected)) {
+          selectedLocation = loc;
+        }
+        if (isSelected) {
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+      ImGui::EndCombo();
+    }
+
+    auto histSize = ImGui::GetContentRegionAvail();
+    if (ImPlot::BeginPlot("duration_histogram", histSize)) {
+      ImPlot::SetupAxis(ImAxis_X1, "duration [s]");
+      ImPlot::SetupAxis(ImAxis_Y1, "count");
+      ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_Log10);
+      if (selectedMeas) {
+        std::vector<double> durations;
+        durations.reserve(selectedMeas->timeData.size());
+        for (const auto &td : selectedMeas->timeData) {
+          durations.push_back(td.duration);
+        }
+        ImPlot::PlotHistogram(selectedMeas->name.c_str(), durations.data(),
+                              durations.size());
+      }
+      ImPlot::EndPlot();
+    }
+    return;
+  }
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0F;
@@ -771,10 +823,11 @@ void Plotter::drawExportModal() {
       if (exportSession && !exportFileName.empty()) {
         std::ofstream out(loadedPath + "/" + exportFileName, std::ios::out);
         if (out.is_open()) {
-          out << "time;duration;path;line;function;name\n";
+          out << "time;duration;thread;path;line;function;name\n";
           for (const auto &row : sessionData) {
-            out << row.time << ";" << row.duration << ";" << row.path << ";"
-                << row.line << ";" << row.function << ";" << row.name << "\n";
+            out << row.time << ";" << row.duration << ";" << row.threadId
+                << ";" << row.path << ";" << row.line << ";" << row.function
+                << ";" << row.name << "\n";
           }
           out.close();
         } else {

@@ -9,11 +9,13 @@ struct __attribute__((packed)) session_row_binary_t {
   int64_t time;
   uint64_t location_id;
   int64_t duration;
+  uint64_t thread_id;
 };
 struct session_row_t {
   double time;
   double duration;
   uint64_t locationId;
+  uint64_t threadId;
   std::string_view path;
   int line;
   std::string_view function;

@@ -154,6 +154,7 @@ The exported files are two. One will contain the raw measurements in a CSV forma
 The exported_session.csv file will contain the following columns:
 - `time`: the time of the measurement in nanoseconds.
 - `duration`: the duration in nanoseconds.
+- `thread`: the id of the thread that recorded the measurement.
 - `path`: the path of the file where the measurement was taken.
 - `line`: the line number in the source file.
 - `function`: the name of the function where the measurement was taken.

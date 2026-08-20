@@ -61,8 +61,8 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
     const session_row_binary_t &ser = rawRecords[i];
     const id_map &loc = locationIDMap[ser.location_id];
     data.emplace_back(session_row_t{ser.time / 1e9, ser.duration / 1e9,
-                                    ser.location_id, loc.path, loc.line,
-                                    loc.function, loc.name});
+                                    ser.location_id, ser.thread_id, loc.path,
+                                    loc.line, loc.function, loc.name});
     if ((i % kProgressStride) == 0 || i + 1 == readCount) {
       progress = (float)(i + 1) / readCount;
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <map>
@@ -48,6 +49,7 @@ struct measure_t {
   int64_t time;
   uint64_t id;
   int64_t duration;
+  uint64_t threadId;
 };
 
 class ProfilingSession {
@@ -67,6 +69,7 @@ private:
   void retireBuffer(MeasureBuffer *buf) noexcept;
   void flushBuffer(MeasureBuffer &buf) noexcept;
   void writeLocked(const measure_t *data, size_t count) noexcept;
+  uint64_t allocateThreadId() noexcept;
 
   friend class MeasureScope;
   friend class LocationID;
@@ -94,6 +97,7 @@ private:
 
   std::map<std::string, uint64_t> locationIDMap;
   std::vector<MeasureBuffer *> buffers;
+  std::atomic<uint64_t> nextThreadId{0};
 
   std::unique_ptr<FILE, FileCloser> session;
 };
@@ -101,7 +105,7 @@ private:
 class MeasureBuffer {
 public:
   ~MeasureBuffer() noexcept;
-  void push(const measure_t &m) noexcept;
+  void push(measure_t m) noexcept;
 
 private:
   static constexpr size_t kCapacity = 1024;
@@ -109,6 +113,7 @@ private:
   std::array<measure_t, kCapacity> data;
   size_t count = 0;
   bool registered = false;
+  uint64_t threadId = 0;
 
   friend class ProfilingSession;
 };
