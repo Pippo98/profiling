@@ -3,12 +3,11 @@
 
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <sstream>
 #include <string>
 
 bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
-                    std::map<uint64_t, id_map> &locationIDMap,
+                    std::unordered_map<uint64_t, id_map> &locationIDMap,
                     std::atomic<float> &progress) {
   std::ifstream locationIDMapFile(path + SESSION_ID_MAP_FILENAME,
                                   std::fstream::in);
@@ -48,17 +47,25 @@ bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
   csvSize = ftell(csv);
   fseek(csv, 0, SEEK_SET);
 
-  session_row_binary_t ser;
-  data.clear();
-  data.reserve(csvSize / sizeof(ser));
-  while (fread(&ser, sizeof(ser), 1, csv)) {
-    data.emplace_back(session_row_t{ser.time / 1e9, ser.duration / 1e9,
-                                    locationIDMap[ser.location_id].path,
-                                    locationIDMap[ser.location_id].line,
-                                    locationIDMap[ser.location_id].function,
-                                    locationIDMap[ser.location_id].name});
-    progress = (float)data.size() * sizeof(ser) / csvSize;
-  }
+  const size_t recordCount = csvSize / sizeof(session_row_binary_t);
+  std::vector<session_row_binary_t> rawRecords(recordCount);
+  const size_t readCount =
+      fread(rawRecords.data(), sizeof(session_row_binary_t), recordCount, csv);
   fclose(csv);
+  rawRecords.resize(readCount);
+
+  data.clear();
+  data.reserve(readCount);
+  constexpr size_t kProgressStride = 4096;
+  for (size_t i = 0; i < readCount; i++) {
+    const session_row_binary_t &ser = rawRecords[i];
+    const id_map &loc = locationIDMap[ser.location_id];
+    data.emplace_back(session_row_t{ser.time / 1e9, ser.duration / 1e9,
+                                    loc.path, loc.line, loc.function,
+                                    loc.name});
+    if ((i % kProgressStride) == 0 || i + 1 == readCount) {
+      progress = (float)(i + 1) / readCount;
+    }
+  }
   return true;
 }

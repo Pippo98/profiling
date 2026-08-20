@@ -3,6 +3,7 @@
 #include <atomic>
 #include <map>
 #include <thread>
+#include <unordered_map>
 
 #include "imgui.hpp"
 #include "app_utils/app.hpp"
@@ -77,7 +78,7 @@ private:
 	bool exportModalOpen = false;
 
   std::vector<session_row_t> sessionData;
-	std::map<uint64_t, id_map> locationIDMap;
+	std::unordered_map<uint64_t, id_map> locationIDMap;
   std::map<std::string, measurement_element_t> measurements;
   double endTime;
   std::string loadedPath;

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <atomic>
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 struct __attribute__((packed)) session_row_binary_t {
@@ -27,5 +27,5 @@ struct id_map {
 };
 
 bool ReadSessionCSV(const std::string &path, std::vector<session_row_t> &data,
-                    std::map<uint64_t, id_map> &locationIDMap,
+                    std::unordered_map<uint64_t, id_map> &locationIDMap,
                     std::atomic<float> &progress);
