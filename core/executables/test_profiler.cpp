@@ -3,7 +3,6 @@
 #include <iostream>
 #include <random>
 
-#include "defines.hpp"
 #include "profiler/profiler.hpp"
 
 using time_point = std::chrono::steady_clock::time_point;
@@ -18,7 +17,7 @@ long getDuration(time_point start) {
 }
 
 int main(void) {
-  ProfilingSession::getGlobalInstace().initialize(PROJECT_PATH);
+  ProfilingSession::getGlobalInstace().initialize(".");
 	ProfilingSession::getGlobalInstace().enable();
 
   constexpr int iterations = 32000;

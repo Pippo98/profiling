@@ -1,4 +1,3 @@
-#include "defines.hpp"
 #include "profiler.hpp"
 
 #include <algorithm>

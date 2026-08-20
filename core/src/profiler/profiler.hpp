@@ -22,6 +22,9 @@ typedef std::source_location source_loc;
 
 using time_point = std::chrono::steady_clock::time_point;
 
+#define SESSION_FILENAME "profiler_session.bin"
+#define SESSION_ID_MAP_FILENAME "measures_id_map.csv"
+
 struct FileCloser {
   void operator()(FILE *file) const {
     if (file) {

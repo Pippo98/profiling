@@ -1,5 +1,5 @@
 #include "plotter.hpp"
-#include "defines.hpp"
+#include "embedded_font.hpp"
 #include "kvp.hpp"
 #include "utils/style.hpp"
 extern "C" {
@@ -19,14 +19,14 @@ ImFont *h3;
 ImFont *text;
 
 void loadImGuiFont() {
-  h1 = ImGui::GetIO().Fonts->AddFontFromFileTTF(
-      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 16);
-  h2 = ImGui::GetIO().Fonts->AddFontFromFileTTF(
-      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 18);
-  h3 = ImGui::GetIO().Fonts->AddFontFromFileTTF(
-      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 22);
-  text = ImGui::GetIO().Fonts->AddFontFromFileTTF(
-      PROJECT_PATH "/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf", 14);
+  h1 = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(
+      JetBrainsMonoNerdFontRegular_compressed_data_base85, 16);
+  h2 = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(
+      JetBrainsMonoNerdFontRegular_compressed_data_base85, 18);
+  h3 = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(
+      JetBrainsMonoNerdFontRegular_compressed_data_base85, 22);
+  text = ImGui::GetIO().Fonts->AddFontFromMemoryCompressedBase85TTF(
+      JetBrainsMonoNerdFontRegular_compressed_data_base85, 14);
   if (h1 == nullptr) {
     h1 = ImGui::GetFont();
     h2 = ImGui::GetFont();
