@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <map>
+#include <optional>
 #include <thread>
 #include <unordered_map>
 
@@ -61,46 +62,60 @@ inline std::string getLocation(const session_row_t &el) {
   return std::string(el.path) + "(" + std::to_string(el.line) + "): " + std::string(el.function);
 }
 
-class Plotter : public App {
-public:
-	~Plotter();
-protected:
-  virtual void Draw();
+struct SessionState {
+  ~SessionState() {
+    if (loadingThread && loadingThread->joinable()) {
+      loadingThread->join();
+    }
+  }
 
-private:
-	void startLoading();
-  void processSessionData();
-
-  void plotTimeEvolution();
-  void plotBars();
-	void drawExportModal();
-
-	void drawSortSelector();
-
-	bool loading = false;
-	bool shouldStartLoading = false;
+  bool loading = false;
+  bool shouldStartLoading = false;
   bool sessionCsvValid = false;
-	bool exportModalOpen = false;
 
   std::vector<session_row_t> sessionData;
-	std::unordered_map<uint64_t, id_map> locationIDMap;
+  std::unordered_map<uint64_t, id_map> locationIDMap;
   std::map<std::string, measurement_element_t> measurements;
-  double endTime;
+  double endTime = 0.0;
   std::string loadedPath;
 
-  int previewFileLine;
-  std::string previewFileName;
-  std::vector<std::string> previewFileLines;
+  std::atomic<float> progress = 0.0f;
+  std::unique_ptr<std::thread> loadingThread;
 
-	std::atomic<float> progress = 0.0f;
-	std::unique_ptr<std::thread> loadingThread;
-
-  // list of measuresPerSeconds along the full log. measures how 
+  // list of measuresPerSeconds along the full log. measures how
   // many rows per seconds there were.
   // Drops in this values means that nothing happened in those instances
   std::vector<time_value_pair_t<double>> measurementsPerSecond;
   std::vector<std::string> keysByDuration;
   std::vector<std::string> keysByAppearance;
+};
+
+class Plotter : public App {
+public:
+	~Plotter() = default;
+protected:
+  virtual void Draw();
+
+private:
+	void startLoading(SessionState &session);
+  void processSessionData(SessionState &session);
+  bool drawPathPicker(const char *idLabel, std::string &path);
+
+  void plotTimeEvolution();
+  void plotBars();
+	void drawExportModal();
+  void drawCompare();
+
+	void drawSortSelector();
+
+	bool exportModalOpen = false;
+
+  SessionState primary;
+  std::optional<SessionState> comparison;
+
+  int previewFileLine;
+  std::string previewFileName;
+  std::vector<std::string> previewFileLines;
 
 	int sortBy = (int)SortBy::None;
 	std::string searchFilter;

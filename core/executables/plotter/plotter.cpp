@@ -49,37 +49,55 @@ int main() {
   return EXIT_SUCCESS;
 }
 
-Plotter::~Plotter() {
-  if (loadingThread && loadingThread->joinable()) {
-    loadingThread->join();
-  }
-}
-
-void Plotter::startLoading() {
-  shouldStartLoading = false;
-  if (loading) {
+void Plotter::startLoading(SessionState &session) {
+  session.shouldStartLoading = false;
+  if (session.loading) {
     return;
   }
 
-  sessionCsvValid = false;
+  session.sessionCsvValid = false;
 
-  if (loadingThread && loadingThread->joinable()) {
-    loadingThread->join();
+  if (session.loadingThread && session.loadingThread->joinable()) {
+    session.loadingThread->join();
   }
-  loadingThread = std::make_unique<std::thread>([&]() {
-    sessionCsvValid = ReadSessionCSV(loadedPath, sessionData, locationIDMap, progress);
-    processSessionData();
-    loading = false;
+  session.loadingThread = std::make_unique<std::thread>([this, &session]() {
+    session.sessionCsvValid = ReadSessionCSV(
+        session.loadedPath, session.sessionData, session.locationIDMap,
+        session.progress);
+    processSessionData(session);
+    session.loading = false;
   });
-  loading = true;
+  session.loading = true;
+}
+
+bool Plotter::drawPathPicker(const char *idLabel, std::string &path) {
+  ImGui::PushID(idLabel);
+  ImGui::AlignTextToFramePadding();
+  ImGui::Text("Path to session data:");
+  ImGui::SameLine();
+  bool enterPressed =
+      ImGui::InputText("##path", &path, ImGuiInputTextFlags_EnterReturnsTrue);
+  ImGui::SameLine();
+  if (ImGui::Button("Browse")) {
+    const char *file =
+        tinyfd_selectFolderDialog("Select base path", path.c_str());
+    if (file) {
+      path = file;
+      path += "/";
+    }
+  }
+  ImGui::SameLine();
+  bool openClicked = ImGui::Button("Open");
+  ImGui::PopID();
+  return enterPressed || openClicked;
 }
 
 void Plotter::Draw() {
-  if (shouldStartLoading) {
-    startLoading();
+  if (primary.shouldStartLoading) {
+    startLoading(primary);
   }
 
-  if (loading) {
+  if (primary.loading) {
     ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_Once);
     if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
       ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 200,
@@ -88,18 +106,18 @@ void Plotter::Draw() {
     }
 
     ImGui::Begin("Loading");
-    ImGui::Text("Loading session data from %s", loadedPath.c_str());
-    if (!sessionCsvValid) {
+    ImGui::Text("Loading session data from %s", primary.loadedPath.c_str());
+    if (!primary.sessionCsvValid) {
       ImGui::Text("Loading CSV file...");
     } else {
       ImGui::Text("Processing data...");
     }
-    ImGui::ProgressBar(progress.load(), ImVec2(0.0f, 0.0f));
+    ImGui::ProgressBar(primary.progress.load(), ImVec2(0.0f, 0.0f));
     ImGui::End();
     return;
   }
 
-  if (!sessionCsvValid) {
+  if (!primary.sessionCsvValid) {
     ImGui::SetNextWindowSize(ImVec2(600, 200), ImGuiCond_Once);
     if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
       ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2.0f - 300,
@@ -108,22 +126,9 @@ void Plotter::Draw() {
     }
     ImGui::Begin("Open");
     std::string &path = KVP::getMutable("base path");
-    ImGui::AlignTextToFramePadding();
-    ImGui::Text("Path to session data:");
-    ImGui::SameLine();
-    ImGui::InputText("##base_path", &path);
-    ImGui::SameLine();
-    if (ImGui::Button("Browse")) {
-      const char *file =
-          tinyfd_selectFolderDialog("Select base path", path.c_str());
-      if (file) {
-        path = file;
-        path += "/";
-      }
-    }
-    if (ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-      loadedPath = path;
-      shouldStartLoading = true;
+    if (drawPathPicker("primary_path_picker", path)) {
+      primary.loadedPath = path;
+      primary.shouldStartLoading = true;
     }
     ImGui::End();
   } else {
@@ -140,6 +145,14 @@ void Plotter::Draw() {
     }
     if (ImGui::Begin("Statistics")) {
       plotBars();
+    }
+    ImGui::End();
+
+    if (!ImGui::GetCurrentContext()->SettingsLoaded) {
+      ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_Once);
+    }
+    if (ImGui::Begin("Compare")) {
+      drawCompare();
     }
     ImGui::End();
   }
@@ -188,21 +201,21 @@ bool containsCaseInsensitive(const std::string &haystack,
   return it != haystack.end();
 }
 
-void Plotter::processSessionData() {
-  measurements.clear();
-  keysByDuration.clear();
-  keysByAppearance.clear();
-  measurementsPerSecond.resize(sessionData.size());
-  std::vector<double> measurementsTimes(sessionData.size());
+void Plotter::processSessionData(SessionState &session) {
+  session.measurements.clear();
+  session.keysByDuration.clear();
+  session.keysByAppearance.clear();
+  session.measurementsPerSecond.resize(session.sessionData.size());
+  std::vector<double> measurementsTimes(session.sessionData.size());
   std::unordered_map<uint64_t, measurement_element_t *> locationCache;
   constexpr size_t kProgressStride = 4096;
-  for (size_t i = 0; i < sessionData.size(); i++) {
-    const auto &row = sessionData[i];
+  for (size_t i = 0; i < session.sessionData.size(); i++) {
+    const auto &row = session.sessionData[i];
 
     measurement_element_t *measPtr;
     auto cached = locationCache.find(row.locationId);
     if (cached == locationCache.end()) {
-      measurement_element_t &meas = measurements[getLocation(row)];
+      measurement_element_t &meas = session.measurements[getLocation(row)];
       meas.function = row.function;
       meas.line = row.line;
       meas.path = row.path;
@@ -224,8 +237,8 @@ void Plotter::processSessionData() {
 
     measurementsTimes[i] = row.time;
 
-    if ((i % kProgressStride) == 0 || i + 1 == sessionData.size()) {
-      progress = (double)(i + 1) / sessionData.size();
+    if ((i % kProgressStride) == 0 || i + 1 == session.sessionData.size()) {
+      session.progress = (double)(i + 1) / session.sessionData.size();
     }
   }
 
@@ -235,13 +248,13 @@ void Plotter::processSessionData() {
 
   std::sort(measurementsTimes.begin(), measurementsTimes.end());
   for (size_t i = 1; i < measurementsTimes.size() - 1; i++) {
-    measurementsPerSecond[i].time = measurementsTimes[i];
-    measurementsPerSecond[i].value = measurementsPerSecond[i - 1].value +
-                                     measurementsTimes[i] -
-                                     measurementsTimes[i - 1];
+    session.measurementsPerSecond[i].time = measurementsTimes[i];
+    session.measurementsPerSecond[i].value =
+        session.measurementsPerSecond[i - 1].value + measurementsTimes[i] -
+        measurementsTimes[i - 1];
   }
-  endTime = 0.0;
-  for (auto &[loc, meas] : measurements) {
+  session.endTime = 0.0;
+  for (auto &[loc, meas] : session.measurements) {
     std::sort(meas.timeData.begin(), meas.timeData.end(),
               [](const auto &a, const auto &b) { return a.time < b.time; });
     meas.displayLabel = meas.name + "\n" + meas.file + ":" +
@@ -249,7 +262,7 @@ void Plotter::processSessionData() {
     meas.standardDeviation = 0.0;
     meas.meanFrequency = meas.timeData.size() / meas.startAndDuration.duration;
     meas.meanDuration /= meas.timeData.size();
-    endTime = std::max(endTime, meas.timeData.back().time);
+    session.endTime = std::max(session.endTime, meas.timeData.back().time);
 
     std::vector<double> sortedDurations;
     sortedDurations.reserve(meas.timeData.size());
@@ -270,27 +283,27 @@ void Plotter::processSessionData() {
         std::sqrt(meas.standardDeviation / meas.timeData.size());
     std::cout << getLocation(meas) << " => " << meas.meanDuration << " "
               << meas.standardDeviation << std::endl;
-    keysByDuration.push_back(loc);
+    session.keysByDuration.push_back(loc);
   }
-  keysByAppearance = keysByDuration;
-  std::sort(keysByDuration.begin(), keysByDuration.end(),
+  session.keysByAppearance = session.keysByDuration;
+  std::sort(session.keysByDuration.begin(), session.keysByDuration.end(),
             [&](const auto &a, const auto &b) {
-              const auto &elA = measurements[a];
-              const auto &elB = measurements[b];
+              const auto &elA = session.measurements[a];
+              const auto &elB = session.measurements[b];
               return elA.meanDuration * elA.timeData.size() >
                      elB.meanDuration * elB.timeData.size();
             });
-  std::sort(keysByAppearance.begin(), keysByAppearance.end(),
+  std::sort(session.keysByAppearance.begin(), session.keysByAppearance.end(),
             [&](const std::string &a, const std::string &b) {
-              const measurement_element_t &elA = measurements[a];
-              const measurement_element_t &elB = measurements[b];
+              const measurement_element_t &elA = session.measurements[a];
+              const measurement_element_t &elB = session.measurements[b];
               return elA.startAndDuration.time < elB.startAndDuration.time;
             });
-  for (size_t i = 0; i < keysByDuration.size(); i++) {
-    measurements[keysByDuration[i]].durationSortedIndex = i;
+  for (size_t i = 0; i < session.keysByDuration.size(); i++) {
+    session.measurements[session.keysByDuration[i]].durationSortedIndex = i;
   }
-  for (size_t i = 0; i < keysByAppearance.size(); i++) {
-    measurements[keysByAppearance[i]].appearanceSortedIndex = i;
+  for (size_t i = 0; i < session.keysByAppearance.size(); i++) {
+    session.measurements[session.keysByAppearance[i]].appearanceSortedIndex = i;
   }
 }
 
@@ -341,6 +354,9 @@ void drawElementTooltip(const measurement_element_t &element,
 }
 
 void Plotter::plotTimeEvolution() {
+  auto &measurements = primary.measurements;
+  auto &endTime = primary.endTime;
+  auto &measurementsPerSecond = primary.measurementsPerSecond;
   static double lowerThreshold = 0.0;
   ImGui::SetNextItemWidth(200);
   drawSortSelector();
@@ -622,16 +638,18 @@ void Plotter::plotTimeEvolution() {
 }
 
 void Plotter::plotBars() {
+  auto &measurements = primary.measurements;
+  auto &endTime = primary.endTime;
   static int opts = 0;
 
-  ImGui::Text("Loaded path: %s", loadedPath.c_str());
+  ImGui::Text("Loaded path: %s", primary.loadedPath.c_str());
 
   if (ImGui::Button("Close session")) {
-    sessionCsvValid = false;
+    primary.sessionCsvValid = false;
   }
   ImGui::SameLine();
   if (ImGui::Button("Reload")) {
-    shouldStartLoading = true;
+    primary.shouldStartLoading = true;
   }
   ImGui::SameLine();
   if (ImGui::Button("Export")) {
@@ -800,6 +818,9 @@ void Plotter::drawSortSelector() {
 }
 
 void Plotter::drawExportModal() {
+  auto &loadedPath = primary.loadedPath;
+  auto &sessionData = primary.sessionData;
+  auto &measurements = primary.measurements;
   static std::string prefix = "export";
   if (ImGui::BeginPopupModal("Export options", nullptr,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -873,5 +894,162 @@ void Plotter::drawExportModal() {
       ImGui::CloseCurrentPopup();
     }
     ImGui::EndPopup();
+  }
+}
+
+void Plotter::drawCompare() {
+  if (comparison && comparison->shouldStartLoading) {
+    startLoading(*comparison);
+  }
+
+  if (!comparison.has_value() ||
+      (!comparison->sessionCsvValid && !comparison->loading)) {
+    ImGui::Text(
+        "Load a second session to compare against the currently loaded one.");
+    std::string &path = KVP::getMutable("comparison path");
+    if (drawPathPicker("comparison_path_picker", path)) {
+      if (!comparison.has_value()) {
+        comparison.emplace();
+      }
+      comparison->loadedPath = path;
+      comparison->shouldStartLoading = true;
+    }
+    return;
+  }
+
+  if (comparison->loading) {
+    ImGui::Text("Loading comparison session from %s",
+                comparison->loadedPath.c_str());
+    if (!comparison->sessionCsvValid) {
+      ImGui::Text("Loading CSV file...");
+    } else {
+      ImGui::Text("Processing data...");
+    }
+    ImGui::ProgressBar(comparison->progress.load(), ImVec2(0.0f, 0.0f));
+    return;
+  }
+
+  if (ImGui::Button("Unload comparison session")) {
+    comparison.reset();
+    return;
+  }
+  ImGui::SameLine();
+  ImGui::Text("Comparing baseline (%s) against comparison (%s)",
+              primary.loadedPath.c_str(), comparison->loadedPath.c_str());
+  ImGui::Separator();
+
+  struct CompareRow {
+    const measurement_element_t *base;
+    const measurement_element_t *comp;
+  };
+  std::vector<CompareRow> rows;
+  rows.reserve(primary.measurements.size());
+  std::vector<const measurement_element_t *> onlyBaseline;
+  std::vector<const measurement_element_t *> onlyComparison;
+  for (auto &[loc, meas] : primary.measurements) {
+    auto it = comparison->measurements.find(loc);
+    if (it != comparison->measurements.end()) {
+      rows.push_back({&meas, &it->second});
+    } else {
+      onlyBaseline.push_back(&meas);
+    }
+  }
+  for (auto &[loc, meas] : comparison->measurements) {
+    if (primary.measurements.find(loc) == primary.measurements.end()) {
+      onlyComparison.push_back(&meas);
+    }
+  }
+
+  if (ImGui::BeginTable("compare_table", 6,
+                        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                            ImGuiTableFlags_Resizable |
+                            ImGuiTableFlags_ScrollY,
+                        ImVec2(0, 300))) {
+    ImGui::TableSetupColumn("Location");
+    ImGui::TableSetupColumn("Baseline mean [s]");
+    ImGui::TableSetupColumn("Comparison mean [s]");
+    ImGui::TableSetupColumn("Delta [s]");
+    ImGui::TableSetupColumn("Delta %");
+    ImGui::TableSetupColumn("Hits (base/comp)");
+    ImGui::TableHeadersRow();
+
+    for (const auto &row : rows) {
+      double deltaMean = row.comp->meanDuration - row.base->meanDuration;
+      double deltaPct = row.base->meanDuration != 0.0
+                             ? (deltaMean / row.base->meanDuration) * 100.0
+                             : 0.0;
+      ImGui::TableNextRow();
+      ImGui::TableNextColumn();
+      ImGui::TextUnformatted(row.base->displayLabel.c_str());
+      ImGui::TableNextColumn();
+      ImGui::Text("%.9f", row.base->meanDuration);
+      ImGui::TableNextColumn();
+      ImGui::Text("%.9f", row.comp->meanDuration);
+      ImGui::TableNextColumn();
+      ImGui::Text("%.9f", deltaMean);
+      ImGui::TableNextColumn();
+      ImVec4 color = deltaPct > 0 ? ImVec4(1.0f, 0.4f, 0.4f, 1.0f)
+                                  : ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
+      ImGui::TextColored(color, "%+.2f%%", deltaPct);
+      ImGui::TableNextColumn();
+      ImGui::Text("%zu / %zu", row.base->timeData.size(),
+                  row.comp->timeData.size());
+    }
+    ImGui::EndTable();
+  }
+
+  if (!rows.empty()) {
+    std::vector<double> yPosition(rows.size());
+    std::vector<double> regressions(rows.size(), 0.0);
+    std::vector<double> improvements(rows.size(), 0.0);
+    for (size_t i = 0; i < rows.size(); i++) {
+      double deltaMean =
+          rows[i].comp->meanDuration - rows[i].base->meanDuration;
+      double deltaPct = rows[i].base->meanDuration != 0.0
+                             ? (deltaMean / rows[i].base->meanDuration) * 100.0
+                             : 0.0;
+      yPosition[i] = (double)i;
+      if (deltaPct >= 0) {
+        regressions[i] = deltaPct;
+      } else {
+        improvements[i] = deltaPct;
+      }
+    }
+    auto chartSize = ImGui::GetContentRegionAvail();
+    if (ImPlot::BeginPlot("compare_delta_chart", chartSize)) {
+      ImPlot::SetupAxis(ImAxis_X1, "mean duration delta [%]");
+      ImPlot::SetupAxis(ImAxis_Y1, "##location", ImPlotAxisFlags_AutoFit);
+      ImPlot::SetNextFillStyle(ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+      ImPlot::PlotBars("Regression", regressions.data(), yPosition.data(),
+                       regressions.size(), 0.6, ImPlotBarsFlags_Horizontal);
+      ImPlot::SetNextFillStyle(ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+      ImPlot::PlotBars("Improvement", improvements.data(), yPosition.data(),
+                       improvements.size(), 0.6, ImPlotBarsFlags_Horizontal);
+      auto pltMin = ImPlot::GetPlotLimits();
+      for (size_t i = 0; i < rows.size(); i++) {
+        float sizeX = ImGui::CalcTextSize(rows[i].base->name.c_str()).x;
+        ImPlot::PlotText(rows[i].base->name.c_str(), pltMin.Min().x,
+                         yPosition[i], ImVec2(sizeX / 2.0f, 0));
+      }
+      ImPlot::EndPlot();
+    }
+  }
+
+  if (!onlyBaseline.empty() || !onlyComparison.empty()) {
+    ImGui::Separator();
+    if (!onlyBaseline.empty()) {
+      ImGui::Text("Only in baseline:");
+      for (const auto *meas : onlyBaseline) {
+        ImGui::BulletText("%s (%s:%" PRIu64 ")", meas->name.c_str(),
+                          meas->file.c_str(), meas->line);
+      }
+    }
+    if (!onlyComparison.empty()) {
+      ImGui::Text("Only in comparison:");
+      for (const auto *meas : onlyComparison) {
+        ImGui::BulletText("%s (%s:%" PRIu64 ")", meas->name.c_str(),
+                          meas->file.c_str(), meas->line);
+      }
+    }
   }
 }
