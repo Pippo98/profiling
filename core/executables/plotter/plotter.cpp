@@ -132,6 +132,8 @@ void Plotter::Draw() {
     }
     ImGui::End();
   } else {
+    drawMenuBar();
+
     if (!ImGui::GetCurrentContext()->SettingsLoaded) {
       ImGui::SetNextWindowSize(ImVec2(800, 800), ImGuiCond_Once);
     }
@@ -405,23 +407,38 @@ void drawElementTooltip(const measurement_element_t &element,
   }
 }
 
+void Plotter::drawMenuBar() {
+  if (!ImGui::BeginMainMenuBar()) {
+    return;
+  }
+  ImGui::Text("Session: %s", primary.loadedPath.c_str());
+  ImGui::Separator();
+  if (ImGui::Button("Close session")) {
+    primary.sessionCsvValid = false;
+  }
+  if (ImGui::Button("Reload")) {
+    primary.shouldStartLoading = true;
+  }
+  if (ImGui::Button("Export")) {
+    exportModalOpen = true;
+  }
+  ImGui::Separator();
+  drawSortSelector();
+  ImGui::Text("Search:");
+  ImGui::SetNextItemWidth(200);
+  ImGui::InputText("##global_search_filter", &searchFilter);
+  ImGui::EndMainMenuBar();
+}
+
 void Plotter::plotTimeEvolution() {
   auto &measurements = primary.measurements;
   auto &endTime = primary.endTime;
   auto &measurementsPerSecond = primary.measurementsPerSecond;
   static double lowerThreshold = 0.0;
-  ImGui::SetNextItemWidth(200);
-  drawSortSelector();
-  ImGui::SameLine();
   ImGui::Text("Skip samples with duration less than: ");
   ImGui::SameLine();
 	ImGui::SetNextItemWidth(100);
   ImGui::InputDouble("##skip_samples_every", &lowerThreshold);
-  ImGui::SameLine();
-  ImGui::Text("Search:");
-  ImGui::SameLine();
-  ImGui::SetNextItemWidth(200);
-  ImGui::InputText("##search_filter", &searchFilter);
 
   auto size = ImGui::GetContentRegionAvail();
   float yIncrement = 1.0f;
@@ -694,34 +711,13 @@ void Plotter::plotBars() {
   auto &endTime = primary.endTime;
   static int opts = 0;
 
-  ImGui::Text("Loaded path: %s", primary.loadedPath.c_str());
-
-  if (ImGui::Button("Close session")) {
-    primary.sessionCsvValid = false;
-  }
-  ImGui::SameLine();
-  if (ImGui::Button("Reload")) {
-    primary.shouldStartLoading = true;
-  }
-  ImGui::SameLine();
-  if (ImGui::Button("Export")) {
-    exportModalOpen = true;
-  }
-  ImGui::Separator();
-
-  drawSortSelector();
-  ImGui::SameLine();
   ImGui::Text("Plot options:");
   ImGui::SameLine();
   ImGui::SetNextItemWidth(200);
   const char *plotOptions[] = {"Mean", "Cumulative", "Percentage of total time",
                                "Counts", "Frequency", "Histogram"};
   ImGui::Combo("##Plot options", &opts, plotOptions, IM_ARRAYSIZE(plotOptions));
-  ImGui::SameLine();
-  ImGui::Text("Search:");
-  ImGui::SameLine();
-  ImGui::SetNextItemWidth(200);
-  ImGui::InputText("##search_filter_bars", &searchFilter);
+  ImGui::Separator();
 
   constexpr int kHistogramOption = 5;
   if (opts == kHistogramOption) {

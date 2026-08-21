@@ -101,6 +101,7 @@ private:
   void processSessionData(SessionState &session);
   bool drawPathPicker(const char *idLabel, std::string &path);
 
+  void drawMenuBar();
   void plotTimeEvolution();
   void plotBars();
 	void drawExportModal();
