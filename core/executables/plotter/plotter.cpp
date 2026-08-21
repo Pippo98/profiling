@@ -201,6 +201,58 @@ bool containsCaseInsensitive(const std::string &haystack,
   return it != haystack.end();
 }
 
+std::string commonPathPrefix(const std::string &a, const std::string &b) {
+  size_t n = std::min(a.size(), b.size());
+  size_t i = 0;
+  while (i < n && a[i] == b[i]) {
+    i++;
+  }
+  while (i > 0 && a[i - 1] != '/') {
+    i--;
+  }
+  return a.substr(0, i);
+}
+
+double compareMetricValue(const measurement_element_t &meas,
+                          double sessionEndTime, int opts) {
+  switch (opts) {
+  case 0:
+    return meas.meanDuration;
+  case 1:
+    return meas.meanDuration * meas.timeData.size();
+  case 2:
+    return sessionEndTime != 0.0
+               ? (meas.meanDuration * meas.timeData.size()) / sessionEndTime *
+                     100.0
+               : 0.0;
+  case 3:
+    return (double)meas.timeData.size();
+  case 4:
+    return meas.meanFrequency;
+  default:
+    return 0.0;
+  }
+}
+
+std::string formatMetricValue(double value, int opts) {
+  char buf[64];
+  switch (opts) {
+  case 2:
+    snprintf(buf, sizeof(buf), "%.2f%%", value);
+    break;
+  case 3:
+    snprintf(buf, sizeof(buf), "%.0f", value);
+    break;
+  case 4:
+    snprintf(buf, sizeof(buf), "%.3f Hz", value);
+    break;
+  default:
+    snprintf(buf, sizeof(buf), "%.9f s", value);
+    break;
+  }
+  return buf;
+}
+
 void Plotter::processSessionData(SessionState &session) {
   session.measurements.clear();
   session.keysByDuration.clear();
@@ -933,9 +985,25 @@ void Plotter::drawCompare() {
     comparison.reset();
     return;
   }
-  ImGui::SameLine();
-  ImGui::Text("Comparing baseline (%s) against comparison (%s)",
-              primary.loadedPath.c_str(), comparison->loadedPath.c_str());
+  {
+    std::string prefix =
+        commonPathPrefix(primary.loadedPath, comparison->loadedPath);
+    std::string baseSuffix = primary.loadedPath.substr(prefix.size());
+    std::string compSuffix = comparison->loadedPath.substr(prefix.size());
+    if (!prefix.empty()) {
+      ImGui::Text("Common path: %s", prefix.c_str());
+    }
+    ImGui::Text("Baseline:    %s", baseSuffix.empty() ? "." : baseSuffix.c_str());
+    ImGui::Text("Comparison:  %s", compSuffix.empty() ? "." : compSuffix.c_str());
+  }
+
+  static int compareOpts = 0;
+  const char *compareOptions[] = {"Mean", "Cumulative",
+                                  "Percentage of total time", "Hits",
+                                  "Frequency"};
+  ImGui::SetNextItemWidth(200);
+  ImGui::Combo("##Compare plot options", &compareOpts, compareOptions,
+              IM_ARRAYSIZE(compareOptions));
   ImGui::Separator();
 
   struct CompareRow {
@@ -966,27 +1034,29 @@ void Plotter::drawCompare() {
                             ImGuiTableFlags_ScrollY,
                         ImVec2(0, 300))) {
     ImGui::TableSetupColumn("Location");
-    ImGui::TableSetupColumn("Baseline mean [s]");
-    ImGui::TableSetupColumn("Comparison mean [s]");
-    ImGui::TableSetupColumn("Delta [s]");
+    ImGui::TableSetupColumn("Baseline");
+    ImGui::TableSetupColumn("Comparison");
+    ImGui::TableSetupColumn("Delta");
     ImGui::TableSetupColumn("Delta %");
     ImGui::TableSetupColumn("Hits (base/comp)");
     ImGui::TableHeadersRow();
 
     for (const auto &row : rows) {
-      double deltaMean = row.comp->meanDuration - row.base->meanDuration;
-      double deltaPct = row.base->meanDuration != 0.0
-                             ? (deltaMean / row.base->meanDuration) * 100.0
-                             : 0.0;
+      double baseVal =
+          compareMetricValue(*row.base, primary.endTime, compareOpts);
+      double compVal =
+          compareMetricValue(*row.comp, comparison->endTime, compareOpts);
+      double delta = compVal - baseVal;
+      double deltaPct = baseVal != 0.0 ? (delta / baseVal) * 100.0 : 0.0;
       ImGui::TableNextRow();
       ImGui::TableNextColumn();
       ImGui::TextUnformatted(row.base->displayLabel.c_str());
       ImGui::TableNextColumn();
-      ImGui::Text("%.9f", row.base->meanDuration);
+      ImGui::TextUnformatted(formatMetricValue(baseVal, compareOpts).c_str());
       ImGui::TableNextColumn();
-      ImGui::Text("%.9f", row.comp->meanDuration);
+      ImGui::TextUnformatted(formatMetricValue(compVal, compareOpts).c_str());
       ImGui::TableNextColumn();
-      ImGui::Text("%.9f", deltaMean);
+      ImGui::TextUnformatted(formatMetricValue(delta, compareOpts).c_str());
       ImGui::TableNextColumn();
       ImVec4 color = deltaPct > 0 ? ImVec4(1.0f, 0.4f, 0.4f, 1.0f)
                                   : ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
@@ -1003,11 +1073,12 @@ void Plotter::drawCompare() {
     std::vector<double> regressions(rows.size(), 0.0);
     std::vector<double> improvements(rows.size(), 0.0);
     for (size_t i = 0; i < rows.size(); i++) {
-      double deltaMean =
-          rows[i].comp->meanDuration - rows[i].base->meanDuration;
-      double deltaPct = rows[i].base->meanDuration != 0.0
-                             ? (deltaMean / rows[i].base->meanDuration) * 100.0
-                             : 0.0;
+      double baseVal = compareMetricValue(*rows[i].base, primary.endTime,
+                                          compareOpts);
+      double compVal = compareMetricValue(*rows[i].comp, comparison->endTime,
+                                          compareOpts);
+      double deltaPct = baseVal != 0.0 ? ((compVal - baseVal) / baseVal) * 100.0
+                                       : 0.0;
       yPosition[i] = (double)i;
       if (deltaPct >= 0) {
         regressions[i] = deltaPct;
@@ -1017,7 +1088,9 @@ void Plotter::drawCompare() {
     }
     auto chartSize = ImGui::GetContentRegionAvail();
     if (ImPlot::BeginPlot("compare_delta_chart", chartSize)) {
-      ImPlot::SetupAxis(ImAxis_X1, "mean duration delta [%]");
+      std::string axisLabel =
+          std::string(compareOptions[compareOpts]) + " delta [%]";
+      ImPlot::SetupAxis(ImAxis_X1, axisLabel.c_str());
       ImPlot::SetupAxis(ImAxis_Y1, "##location", ImPlotAxisFlags_AutoFit);
       ImPlot::SetNextFillStyle(ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
       ImPlot::PlotBars("Regression", regressions.data(), yPosition.data(),
